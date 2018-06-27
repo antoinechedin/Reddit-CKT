@@ -43,6 +43,7 @@ public class Main
 	static ArrayList<String> log = new ArrayList<String>();
 	/** The parameters for main Knowledge. */
 	static KTParameters[] mainParameters;
+	static boolean maxSet = false;
 	/** The available metrics. */
 	static ArrayList<Metric> metrics;
 	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
@@ -274,23 +275,28 @@ public class Main
 		if (center)
 		{
 			minScore = Double.MAX_VALUE;
-			maxScore = -Double.MAX_VALUE;
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
 					if (problem.score < minScore) minScore = problem.score;
-					else if (problem.score > maxScore) maxScore = problem.score;
+					else if (!maxSet && problem.score > maxScore) maxScore = problem.score;
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
 					if (problem.groundTruth < minScore) minScore = problem.groundTruth;
-					else if (problem.groundTruth > maxScore) maxScore = problem.groundTruth;
+					else if (!maxSet && problem.groundTruth > maxScore) maxScore = problem.groundTruth;
 
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
+				{
 					problem.score = (problem.score - minScore) / (maxScore - minScore);
+					if (problem.score > 1) problem.score = 1;
+				}
 
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
+				{
 					problem.groundTruth = (problem.groundTruth - minScore) / (maxScore - minScore);
+					if (problem.groundTruth > 1) problem.groundTruth = 1;
+				}
 		}
 
 		if (metrics.size() != 0 && centerMetrics)
@@ -857,6 +863,8 @@ public class Main
 		allSequences = new ArrayList<Sequence>();
 		testingSet = new ArrayList<Sequence>();
 		learningSet = new ArrayList<Sequence>();
+		maxScore = settings.getProperty("max_score").equals("null") ? -Double.MAX_VALUE : Double.parseDouble(settings.getProperty("max_score"));
+		if (!settings.getProperty("max_score").equals("null")) maxSet = true;
 		if (!createSequences(allSequences, sequences)) return;
 		// Deprecated: not in use => weights are provided in the settings
 		if (settings.getProperty("scores").equals("compute")) computeScores();
