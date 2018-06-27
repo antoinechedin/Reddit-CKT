@@ -11,6 +11,8 @@ public class Problem implements Comparable<Problem>
 	Gaussian aggregatedKnowledge;
 	/** The knowledge expected after this Problem. */
 	double expectedKnowledge;
+	/** The ground truth expected for this Problem. */
+	double groundTruth;
 	/** Index of the Problem in the Exploration. */
 	int index;
 	/** True if Problem is considered correct for the ideal sequence. */
@@ -45,7 +47,7 @@ public class Problem implements Comparable<Problem>
 	public Problem asExpected()
 	{
 		Problem copy = new Problem(this.name, this.index);
-		copy.score = this.expectedKnowledge;
+		copy.score = this.groundTruth;
 		copy.index = this.index;
 		copy.isCorrect = this.isCorrect;
 		return copy;

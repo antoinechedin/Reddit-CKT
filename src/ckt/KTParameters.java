@@ -1,7 +1,5 @@
 package ckt;
 
-import java.util.Random;
-
 /** The set of Parameters used in Knowledge Tracing. */
 public class KTParameters
 {
@@ -33,7 +31,7 @@ public class KTParameters
 		/** @return A random value from this Gaussian distribution. */
 		public double next()
 		{
-			double next = random.nextGaussian() * this.variation + this.mean;
+			double next = Utils.random.nextGaussian() * this.variation + this.mean;
 			return next < 0 ? 0 : next > 1 ? 1 : next;
 		}
 
@@ -52,9 +50,6 @@ public class KTParameters
 		}
 
 	}
-
-	/** Random number generator. */
-	static final Random random = new Random();
 
 	/** P(G) */
 	public final Gaussian guess;

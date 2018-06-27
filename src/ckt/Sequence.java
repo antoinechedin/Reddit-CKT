@@ -2,7 +2,6 @@ package ckt;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Random;
 
 import ckt.KTParameters.Gaussian;
 
@@ -164,11 +163,10 @@ public class Sequence implements Comparable<Sequence>
 	public void generateScores(KTParameters parameters)
 	{
 		double current = parameters.startKnowledge, score;
-		Random rand = new Random();
 		for (int i = 0; i < this.problems.size(); ++i)
 		{
 			score = current * (1 - parameters.slip.next()) + (1 - current) * parameters.guess.next();
-			score *= 0.4 * (rand.nextDouble() - 0.5) + 1;
+			score *= 0.4 * (Utils.random.nextDouble() - 0.5) + 1;
 			score = Math.min(1, Math.max(0, score));
 			current = this.computeKnowledge(new Gaussian(current, 0), score, parameters).next();
 			this.problems.get(i).score = score;

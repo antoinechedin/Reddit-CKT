@@ -1,12 +1,18 @@
 package ckt;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Random;
 
 import ckt.KTParameters.Gaussian;
 
 public class Utils
 {
+
+	public static Random random;
 
 	/** Displays a double with max size of 6. */
 	public static String display(double d)

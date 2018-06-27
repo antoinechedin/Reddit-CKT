@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.function.Predicate;
 
@@ -24,6 +25,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.csv.QuoteMode;
 
 import ckt.KTParameters.Gaussian;
 
@@ -35,15 +37,18 @@ public class Main
 	static double aggregationBase;
 	/** Stores all the Sequences used for cross validation. */
 	static ArrayList<Sequence> allSequences;
+	/** The parameters for main Knowledge. */
+	static KTParameters[] expectedParameters;
 	/** Stores the Sequences used as learning set. */
 	static ArrayList<Sequence> learningSet;
 	static ArrayList<String> log = new ArrayList<String>();
 	/** The parameters for main Knowledge. */
 	static KTParameters[] mainParameters;
-	/** The parameters for main Knowledge. */
-	static KTParameters[] expectedParameters;
 	/** The available metrics. */
 	static ArrayList<Metric> metrics;
+	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
+	/** path to output / input directory **/
+	final static String PATH = "";// "D:\\Workspace\\KnowledgeTracing\\";
 	/** Settings from settings.properties */
 	static Properties settings;
 	/** Stores the Sequences used as testing set. */
@@ -52,12 +57,9 @@ public class Main
 	static int testingSize;
 	/** The total number of problems. */
 	static int totalProblems;
+
 	/** The number of steps in cross validation. */
 	static int validations;
-	/** path to output / input directory **/
-	final static String PATH = "";// "D:\\Workspace\\KnowledgeTracing\\";
-
-	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
 
 	/** Aggregates Knowledge found for each metric.
 	 * 
@@ -202,6 +204,7 @@ public class Main
 
 	private static void applyKnowledgeTracing(Metric metric)
 	{
+		Utils.random = new Random(1);
 		if (metric == null) log("Executing Knowledge Tracing...");
 		else log("Executing Knowledge Tracing on metric \"" + metric.name + "\"...");
 		if (metric != null) applyThreshold(metric);
@@ -283,12 +286,12 @@ public class Main
 			max = -Double.MAX_VALUE;
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					if (problem.expectedKnowledge < min) min = problem.expectedKnowledge;
-					else if (problem.expectedKnowledge > max) max = problem.expectedKnowledge;
+					if (problem.groundTruth < min) min = problem.groundTruth;
+					else if (problem.groundTruth > max) max = problem.groundTruth;
 
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					problem.expectedKnowledge = (problem.expectedKnowledge - min) / (max - min);
+					problem.groundTruth = (problem.groundTruth - min) / (max - min);
 		}
 
 		if (metrics.size() != 0 && centerMetrics)
@@ -312,6 +315,52 @@ public class Main
 				metric.initialDistribution = new Gaussian(min, max - min);
 			}
 		}
+	}
+
+	/** @return The average L(n) value of the last problem in each of the input sequences based on the real helfulness score not the ones outputed by one of our model. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
+	private static double computeAverageExpectedLearning(ArrayList<Sequence> sequences)
+	{
+		double sumLearning = 0; // contains the sum of all P(Ln) for the last problem of the input sequences
+		for (Sequence sequence : sequences)
+		{
+			sumLearning += sequence.finalProblem().expectedKnowledge;
+		}
+		return sumLearning / sequences.size();
+	}
+
+	/** @param aggregated - If true, will compute the average of the last L(n) value for each sequence of problems for the aggregated Knowledge.
+	 * @return The average L(n) value of the last problem in each of the input sequences. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
+	private static double computeAverageLearning(ArrayList<Sequence> sequences, boolean aggregated)
+	{
+		double sumLearning = 0; // contains the sum of all P(Ln) for the last problem of the input sequences
+		for (Sequence sequence : sequences)
+		{
+			sumLearning += (aggregated) ? sequence.finalProblem().aggregatedKnowledge.mean : sequence.finalProblem().knowledge.mean;
+		}
+		return sumLearning / sequences.size();
+	}
+
+	private static double computeDeviationExpectedLearning(ArrayList<Sequence> sequences, double average)
+	{
+		double sumLearning = 0; // contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
+		for (Sequence sequence : sequences)
+		{
+			sumLearning += Math.pow(sequence.finalProblem().expectedKnowledge - average, 2);
+		}
+		return Math.sqrt(sumLearning / sequences.size());
+	}
+
+	/** Add on by Nicolas for the DOLAP paper **/
+
+	private static double computeDeviationLearning(ArrayList<Sequence> sequences, boolean aggregated, double average)
+	{
+		double sumLearning = 0; // contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
+		for (Sequence sequence : sequences)
+		{
+			sumLearning += (aggregated) ? Math.pow(sequence.finalProblem().aggregatedKnowledge.mean - average, 2)
+					: Math.pow(sequence.finalProblem().knowledge.mean - average, 2);
+		}
+		return Math.sqrt(sumLearning / sequences.size());
 	}
 
 	/** Computes the Knowledge of the Sequences. */
@@ -407,52 +456,6 @@ public class Main
 		}
 
 		return Math.sqrt(precision / sequences.size());
-	}
-
-	/** Add on by Nicolas for the DOLAP paper **/
-
-	/** @param aggregated - If true, will compute the average of the last L(n) value for each sequence of problems for the aggregated Knowledge.
-	 * @return The average L(n) value of the last problem in each of the input sequences. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
-	private static double computeAverageLearning(ArrayList<Sequence> sequences, boolean aggregated)
-	{
-		double sumLearning = 0; // contains the sum of all P(Ln) for the last problem of the input sequences
-		for (Sequence sequence : sequences)
-		{
-			sumLearning += (aggregated) ? sequence.finalProblem().aggregatedKnowledge.mean : sequence.finalProblem().knowledge.mean;
-		}
-		return sumLearning / sequences.size();
-	}
-
-	private static double computeDeviationLearning(ArrayList<Sequence> sequences, boolean aggregated, double average)
-	{
-		double sumLearning = 0; // contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
-		for (Sequence sequence : sequences)
-		{
-			sumLearning += (aggregated) ? Math.pow(sequence.finalProblem().aggregatedKnowledge.mean - average, 2)
-					: Math.pow(sequence.finalProblem().knowledge.mean - average, 2);
-		}
-		return Math.sqrt(sumLearning / sequences.size());
-	}
-
-	/** @return The average L(n) value of the last problem in each of the input sequences based on the real helfulness score not the ones outputed by one of our model. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
-	private static double computeAverageExpectedLearning(ArrayList<Sequence> sequences)
-	{
-		double sumLearning = 0; // contains the sum of all P(Ln) for the last problem of the input sequences
-		for (Sequence sequence : sequences)
-		{
-			sumLearning += sequence.finalProblem().expectedKnowledge;
-		}
-		return sumLearning / sequences.size();
-	}
-
-	private static double computeDeviationExpectedLearning(ArrayList<Sequence> sequences, double average)
-	{
-		double sumLearning = 0; // contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
-		for (Sequence sequence : sequences)
-		{
-			sumLearning += Math.pow(sequence.finalProblem().expectedKnowledge - average, 2);
-		}
-		return Math.sqrt(sumLearning / sequences.size());
 	}
 
 	/** Uses the metrics to calculate the score of each problem.
@@ -643,7 +646,7 @@ public class Main
 		HashMap<Metric, Integer> metricIndex = new HashMap<Metric, Integer>();
 		try
 		{
-			CSVParser parser = CSVParser.parse(input, Charset.defaultCharset(), CSVFormat.DEFAULT);
+			CSVParser parser = CSVParser.parse(input, Charset.defaultCharset(), CSVFormat.DEFAULT.withEscape('\\').withQuoteMode(QuoteMode.NONE));
 
 			int lines = 0;
 			for (CSVRecord record : parser)
@@ -672,7 +675,7 @@ public class Main
 				{
 					Sequence sequence = findSequence(set, record.get(sequenceID));
 					Problem p = order == -1 ? new Problem(record.get(problemID)) : new Problem(record.get(problemID), Integer.parseInt(record.get(order)));
-					p.expectedKnowledge = Utils.parseDouble(record.get(expectedKnowledge));
+					p.groundTruth = Utils.parseDouble(record.get(expectedKnowledge));
 					p.isCorrect = correctness == -1 ? false : record.get(correctness).equals("1");
 					p.score = score == -1 ? 0 : Utils.parseDouble(record.get(score));
 					for (Metric metric : metrics)
@@ -786,7 +789,8 @@ public class Main
 
 		allSequences.clear();
 		allSequences.addAll(sequences);
-		expectedParameters = params;
+		expectedParameters = mainParameters;
+		mainParameters = params;
 	}
 
 	public static void log(String text)
@@ -924,7 +928,92 @@ public class Main
 		if (!settings.getProperty("output_params").equals("null")) exportData(new File(PATH + settings.getProperty("output_params")), outputParams());
 		if (!settings.getProperty("output_sequences").equals("null")) exportData(new File(PATH + settings.getProperty("output_sequences")), outputProblems());
 		if (!settings.getProperty("output_metrics").equals("null")) exportData(new File(PATH + settings.getProperty("output_metrics")), outputMetrics());
+		if (!settings.getProperty("output_user_graphs").equals("null"))
+			exportData(new File(PATH + settings.getProperty("output_user_graphs")), outputUserGraphs());
+
 		log("Done!");
+	}
+
+	/** Function that outputs a String[][] table, each row describing the KT parameters for one specific metric, in the case of aggregated KT
+	 * 
+	 * @return */
+	private static String[][] outputMetricKTParams(HashMap<Metric, KTParameters[]> metricsKTParams)
+	{
+
+		String[][] output = new String[metricsKTParams.size() + 1][11];
+		String[] tmp = { "Metric name", "P(L0)", "V(L0)", "P(T)", "V(T)", "P(G)", "V(G)", "P(S)", "V(S)", "P(Ln)", "V(Ln)" };
+		output[0] = tmp;
+
+		int cpt = 0;
+		for (Metric m : metricsKTParams.keySet())
+		{
+			cpt++;
+			output[cpt][0] = m.name;
+
+			/** Compute KT parameters */
+			KTParameters[] param = metricsKTParams.get(m);
+
+			// Mean
+			double start = 0, transition = 0, guess = 0, slip = 0;
+			for (int i = 0; i < param.length - 2; ++i) // -2 because param.length = 12 but only the 10 first values are useable
+			{
+				start += param[i].startKnowledge;
+				transition += param[i].transition;
+				guess += param[i].guess.mean;
+				slip += param[i].slip.mean;
+			}
+
+			start /= (param.length - 2);
+			transition /= (param.length - 2);
+			guess /= (param.length - 2);
+			slip /= (param.length - 2);
+
+			// Variation
+			double sStart = 0, sTransition = 0, sGuess = 0, sSlip = 0;
+
+			for (int i = 0; i < param.length - 2; ++i)
+			{
+				sStart += Math.pow(param[i].startKnowledge - start, 2);
+				sTransition += Math.pow(param[i].transition - transition, 2);
+				sGuess += Math.pow(param[i].guess.mean - guess, 2);
+				sSlip += Math.pow(param[i].slip.mean - slip, 2);
+			}
+
+			sStart = Math.sqrt(sStart / (param.length - 2));
+			sTransition = Math.sqrt(sTransition / (param.length - 2));
+			sGuess = Math.sqrt(sGuess / (param.length - 2));
+			sSlip = Math.sqrt(sSlip / (param.length - 2));
+
+			/** Export these values to string in the output table */
+			output[cpt][1] = Utils.toString(start);
+			output[cpt][2] = Utils.toString(sStart);
+
+			output[cpt][3] = Utils.toString(transition);
+			output[cpt][4] = Utils.toString(sTransition);
+
+			output[cpt][5] = Utils.toString(guess);
+			output[cpt][6] = Utils.toString(sGuess);
+
+			output[cpt][7] = Utils.toString(slip);
+			output[cpt][8] = Utils.toString(sSlip);
+
+			/** Now let's try to get average(P(Ln)) and variation(P(Ln)) for each metric on the set of sequences */
+			double PLn = 0; // Values for P(Ln)
+			double PLn2 = 0; // Squared values for P(Ln) used to compute the std dev
+			for (Sequence sequence : allSequences)
+			{
+				PLn += sequence.finalProblem().metricKnowledge.get(m).mean;
+				PLn2 += Math.pow(sequence.finalProblem().metricKnowledge.get(m).mean, 2);
+			}
+			// Averaging
+			PLn /= allSequences.size(); // E(X)
+			PLn2 /= allSequences.size(); // E(X^2)
+
+			output[cpt][9] = Utils.toString(PLn);
+			output[cpt][10] = Utils.toString(Math.sqrt(PLn2 - Math.pow(PLn, 2))); // sigma(x) = sqrt(E(X^2) - E(X)^2)
+		} // end for metrics m ...
+
+		return output;
 	}
 
 	/** @return The Knowledge associated with each problem. */
@@ -1091,85 +1180,41 @@ public class Main
 		return data;
 	}
 
-	/** Function that outputs a String[][] table, each row describing the KT parameters for one specific metric, in the case of aggregated KT
-	 * 
-	 * @return */
-	private static String[][] outputMetricKTParams(HashMap<Metric, KTParameters[]> metricsKTParams)
+	private static String[][] outputUserGraphs()
 	{
+		String[][] data = new String[allSequences.size() * 6][];
+		String[] score, expected, kt, ktexpected;
 
-		String[][] output = new String[metricsKTParams.size() + 1][11];
-		String[] tmp = { "Metric name", "P(L0)", "V(L0)", "P(T)", "V(T)", "P(G)", "V(G)", "P(S)", "V(S)", "P(Ln)", "V(Ln)" };
-		output[0] = tmp;
-
-		int cpt = 0;
-		for (Metric m : metricsKTParams.keySet())
+		int i = 0;
+		for (Sequence sequence : allSequences)
 		{
-			cpt++;
-			output[cpt][0] = m.name;
+			score = new String[sequence.problems.size() + 1];
+			expected = new String[sequence.problems.size() + 1];
+			kt = new String[sequence.problems.size() + 1];
+			ktexpected = new String[sequence.problems.size() + 1];
 
-			/** Compute KT parameters */
-			KTParameters[] param = metricsKTParams.get(m);
+			score[0] = "Score";
+			expected[0] = "Expected";
+			kt[0] = "Knowledge";
+			ktexpected[0] = "Expected Knowledge";
 
-			// Mean
-			double start = 0, transition = 0, guess = 0, slip = 0;
-			for (int i = 0; i < param.length - 2; ++i) // -2 because param.length = 12 but only the 10 first values are useable
+			int p = 0;
+			for (Problem problem : sequence.problems)
 			{
-				start += param[i].startKnowledge;
-				transition += param[i].transition;
-				guess += param[i].guess.mean;
-				slip += param[i].slip.mean;
+				score[++p] = Utils.toString(problem.score);
+				expected[p] = Utils.toString(problem.groundTruth);
+				kt[p] = Utils.toString(problem.knowledge.mean);
+				ktexpected[p] = Utils.toString(problem.expectedKnowledge);
 			}
 
-			start /= (param.length - 2);
-			transition /= (param.length - 2);
-			guess /= (param.length - 2);
-			slip /= (param.length - 2);
+			data[i++] = new String[] { sequence.name, "Data..." };
+			data[i++] = score;
+			data[i++] = expected;
+			data[i++] = kt;
+			data[i++] = ktexpected;
+			data[i++] = new String[] {};
+		}
 
-			// Variation
-			double sStart = 0, sTransition = 0, sGuess = 0, sSlip = 0;
-
-			for (int i = 0; i < param.length - 2; ++i)
-			{
-				sStart += Math.pow(param[i].startKnowledge - start, 2);
-				sTransition += Math.pow(param[i].transition - transition, 2);
-				sGuess += Math.pow(param[i].guess.mean - guess, 2);
-				sSlip += Math.pow(param[i].slip.mean - slip, 2);
-			}
-
-			sStart = Math.sqrt(sStart / (param.length - 2));
-			sTransition = Math.sqrt(sTransition / (param.length - 2));
-			sGuess = Math.sqrt(sGuess / (param.length - 2));
-			sSlip = Math.sqrt(sSlip / (param.length - 2));
-
-			/** Export these values to string in the output table */
-			output[cpt][1] = Utils.toString(start);
-			output[cpt][2] = Utils.toString(sStart);
-
-			output[cpt][3] = Utils.toString(transition);
-			output[cpt][4] = Utils.toString(sTransition);
-
-			output[cpt][5] = Utils.toString(guess);
-			output[cpt][6] = Utils.toString(sGuess);
-
-			output[cpt][7] = Utils.toString(slip);
-			output[cpt][8] = Utils.toString(sSlip);
-
-			/** Now let's try to get average(P(Ln)) and variation(P(Ln)) for each metric on the set of sequences */
-			double PLn = 0; // Values for P(Ln)
-			double PLn2 = 0; // Squared values for P(Ln) used to compute the std dev
-			for (Sequence sequence : allSequences)
-			{
-				PLn += sequence.finalProblem().metricKnowledge.get(m).mean;
-				PLn2 += Math.pow(sequence.finalProblem().metricKnowledge.get(m).mean, 2);
-			}
-			// Averaging
-			PLn /= allSequences.size(); // E(X)
-			PLn2 /= allSequences.size(); // E(X^2)
-
-			output[cpt][9] = Utils.toString(PLn);
-			output[cpt][10] = Utils.toString(Math.sqrt(PLn2 - Math.pow(PLn, 2))); // sigma(x) = sqrt(E(X^2) - E(X)^2)
-		} // end for metrics m ...
-
-		return output;
+		return data;
 	}
 }
