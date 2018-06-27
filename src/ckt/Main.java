@@ -25,7 +25,6 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.commons.csv.QuoteMode;
 
 import ckt.KTParameters.Gaussian;
 
@@ -47,6 +46,7 @@ public class Main
 	/** The available metrics. */
 	static ArrayList<Metric> metrics;
 	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
+	static double minScore, maxScore;
 	/** path to output / input directory **/
 	final static String PATH = "";// "D:\\Workspace\\KnowledgeTracing\\";
 	/** Settings from settings.properties */
@@ -57,7 +57,6 @@ public class Main
 	static int testingSize;
 	/** The total number of problems. */
 	static int totalProblems;
-
 	/** The number of steps in cross validation. */
 	static int validations;
 
@@ -236,6 +235,8 @@ public class Main
 	/** Uses the input <code>threshold</code> to determine the correctness of the problem. */
 	private static void applyThreshold(double threshold)
 	{
+		threshold -= minScore;
+		threshold /= maxScore;
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
 				problem.isCorrect = problem.score >= threshold;
@@ -272,26 +273,24 @@ public class Main
 
 		if (center)
 		{
-			double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
+			minScore = Double.MAX_VALUE;
+			maxScore = -Double.MAX_VALUE;
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					if (problem.score < min) min = problem.score;
-					else if (problem.score > max) max = problem.score;
+					if (problem.score < minScore) minScore = problem.score;
+					else if (problem.score > maxScore) maxScore = problem.score;
+			for (Sequence sequence : allSequences)
+				for (Problem problem : sequence.problems)
+					if (problem.groundTruth < minScore) minScore = problem.groundTruth;
+					else if (problem.groundTruth > maxScore) maxScore = problem.groundTruth;
 
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					problem.score = (problem.score - min) / (max - min);
-
-			min = Double.MAX_VALUE;
-			max = -Double.MAX_VALUE;
-			for (Sequence sequence : allSequences)
-				for (Problem problem : sequence.problems)
-					if (problem.groundTruth < min) min = problem.groundTruth;
-					else if (problem.groundTruth > max) max = problem.groundTruth;
+					problem.score = (problem.score - minScore) / (maxScore - minScore);
 
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					problem.groundTruth = (problem.groundTruth - min) / (max - min);
+					problem.groundTruth = (problem.groundTruth - minScore) / (maxScore - minScore);
 		}
 
 		if (metrics.size() != 0 && centerMetrics)
@@ -646,7 +645,7 @@ public class Main
 		HashMap<Metric, Integer> metricIndex = new HashMap<Metric, Integer>();
 		try
 		{
-			CSVParser parser = CSVParser.parse(input, Charset.defaultCharset(), CSVFormat.DEFAULT.withEscape('\\').withQuoteMode(QuoteMode.NONE));
+			CSVParser parser = CSVParser.parse(input, Charset.defaultCharset(), CSVFormat.DEFAULT);
 
 			int lines = 0;
 			for (CSVRecord record : parser)
@@ -707,7 +706,7 @@ public class Main
 		try
 		{
 			BufferedWriter bw = new BufferedWriter(new FileWriter(output));
-			CSVPrinter printer = new CSVPrinter(bw, CSVFormat.DEFAULT);
+			CSVPrinter printer = new CSVPrinter(bw, CSVFormat.DEFAULT.withDelimiter(';'));
 			printer.printRecords(data);
 			printer.close();
 		} catch (IOException e)
@@ -911,18 +910,18 @@ public class Main
 
 		// use the aggregated score (see column 'score' in the sample file)
 		applyKnowledgeTracing(null);
-		for (Metric metric : metrics)
+		if (settings.getProperty("kt_on_metrics").equals("true")) for (Metric metric : metrics)
 			applyKnowledgeTracing(metric);
 
 		// performance index of our model: smoothing the results based on several problems evaluations
 		findRepresentativeProblems();
 
-		if (metrics.size() != 0) aggregateMetrics();
+		if (metrics.size() != 0 && settings.getProperty("kt_on_metrics").equals("true")) aggregateMetrics();
 
 		knowledgeTracingOnExpected();
 
 		/** Edit by Nicolas: export when aggregated model is used a CSV file containing all local KT models per metric **/
-		if (metrics.size() != 0 && !settings.getProperty("output_local_KT").equals("null"))
+		if (metrics.size() != 0 && settings.getProperty("kt_on_metrics").equals("true") && !settings.getProperty("output_local_KT").equals("null"))
 			exportData(new File(PATH + settings.getProperty("output_local_KT")), outputMetricKTParams(metricsKTParams));
 
 		if (!settings.getProperty("output_params").equals("null")) exportData(new File(PATH + settings.getProperty("output_params")), outputParams());
@@ -1088,11 +1087,12 @@ public class Main
 		output[12][1] = Utils.toString(computeDeviationLearning(allSequences, false, average));
 
 		output[13][0] = "mean(Ln) Aggregated";
-		average = metrics.size() == 0 ? 0 : computeAverageLearning(allSequences, true);
+		average = metrics.size() == 0 || !settings.getProperty("kt_on_metrics").equals("true") ? 0 : computeAverageLearning(allSequences, true);
 		output[13][1] = Utils.toString(average);
 
 		output[14][0] = "variation(Ln) Aggregated";
-		output[14][1] = Utils.toString(metrics.size() == 0 ? 0 : computeDeviationLearning(allSequences, true, average));
+		output[14][1] = Utils.toString(
+				metrics.size() == 0 || !settings.getProperty("kt_on_metrics").equals("true") ? 0 : computeDeviationLearning(allSequences, true, average));
 
 		output[15][0] = "mean(Ln) KT Helpfulness";
 		average = computeAverageExpectedLearning(allSequences);

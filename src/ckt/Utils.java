@@ -92,7 +92,7 @@ public class Utils
 
 	public static String toString(double d)
 	{
-		return (new DecimalFormat("#.##########").format(d)).replaceAll(",", ".");
+		return (new DecimalFormat("#.##########").format(d)).replaceAll("\\.", ",");
 	}
 
 }
