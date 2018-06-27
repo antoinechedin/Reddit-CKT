@@ -13,7 +13,6 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.function.Predicate;
@@ -41,6 +40,8 @@ public class Main
 	static ArrayList<String> log = new ArrayList<String>();
 	/** The parameters for main Knowledge. */
 	static KTParameters[] mainParameters;
+	/** The parameters for main Knowledge. */
+	static KTParameters[] expectedParameters;
 	/** The available metrics. */
 	static ArrayList<Metric> metrics;
 	/** Settings from settings.properties */
@@ -53,11 +54,11 @@ public class Main
 	static int totalProblems;
 	/** The number of steps in cross validation. */
 	static int validations;
-	/** path to output / input directory**/
-	final static String PATH = "D:\\Workspace\\KnowledgeTracing\\";
-	
-	static HashMap<Metric, KTParameters[]> metricsKTParams;	// In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
-	
+	/** path to output / input directory **/
+	final static String PATH = "";// "D:\\Workspace\\KnowledgeTracing\\";
+
+	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
+
 	/** Aggregates Knowledge found for each metric.
 	 * 
 	 * @return True if succeeded. */
@@ -77,55 +78,45 @@ public class Main
 					return false;
 				}
 				// running external Python SVM
-				
+
 				Process p = null;
 				String command = "python " + settings.getProperty("aggregation_value");
-			    try {
-			        p = Runtime.getRuntime().exec(command);
-			    } catch (final IOException e) {
-			        e.printStackTrace();
-			    }
-
-			    //Wait to get exit value
-			    try {
-			        p.waitFor();
-			        final int exitValue = p.waitFor();
-			        if (exitValue == 0)
-			            System.out.println("Successfully executed the command: " + command);
-			        else {
-			            System.out.println("Failed to execute the following command: " + command + " due to the following error(s):");
-			            try (final BufferedReader b = new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
-			                String line;
-			                if ((line = b.readLine()) != null)
-			                    System.out.println(line);
-			            } catch (final IOException e) {
-			                e.printStackTrace();
-			            }                
-			        }
-			    } catch (InterruptedException e) {
-			        e.printStackTrace();
-			    }
-				
-				/*
 				try
 				{
-					System.out.println("Running python SVM...");
-					Process p = Runtime.getRuntime().exec("python " + settings.getProperty("aggregation_value"));
-					
-					while (p.isAlive())
-						Thread.sleep(100);
-				} catch (IOException e)
+					p = Runtime.getRuntime().exec(command);
+				} catch (final IOException e)
 				{
 					e.printStackTrace();
-					return false;
+				}
+
+				// Wait to get exit value
+				try
+				{
+					p.waitFor();
+					final int exitValue = p.waitFor();
+					if (exitValue == 0) System.out.println("Successfully executed the command: " + command);
+					else
+					{
+						System.out.println("Failed to execute the following command: " + command + " due to the following error(s):");
+						try (final BufferedReader b = new BufferedReader(new InputStreamReader(p.getErrorStream())))
+						{
+							String line;
+							if ((line = b.readLine()) != null) System.out.println(line);
+						} catch (final IOException e)
+						{
+							e.printStackTrace();
+						}
+					}
 				} catch (InterruptedException e)
 				{
 					e.printStackTrace();
 				}
 
-				System.out.println("SVM completed.");
-				
-				*/
+				/* try { System.out.println("Running python SVM..."); Process p = Runtime.getRuntime().exec("python " + settings.getProperty("aggregation_value"));
+				 * 
+				 * while (p.isAlive()) Thread.sleep(100); } catch (IOException e) { e.printStackTrace(); return false; } catch (InterruptedException e) { e.printStackTrace(); }
+				 * 
+				 * System.out.println("SVM completed."); */
 			} else
 			{
 				System.out.println("Waiting... Press Enter when the weights file is ready.");
@@ -133,8 +124,8 @@ public class Main
 			}
 
 			// Gathering SVM data
-			String weightsData = Utils.readTextFile(settings.getProperty("aggregation_type").equals("svm") ? PATH + "weights.txt" : settings
-					.getProperty("aggregation_value"));
+			String weightsData = Utils
+					.readTextFile(settings.getProperty("aggregation_type").equals("svm") ? PATH + "weights.txt" : settings.getProperty("aggregation_value"));
 			weightsData = weightsData.replaceAll("\\n", "").replaceAll("\\[", "").replaceAll("\\]", "");
 			while (weightsData.contains("  "))
 				weightsData = weightsData.replaceAll("  ", " ");
@@ -183,7 +174,7 @@ public class Main
 						{
 							for (int m = 0; m < metrics.size(); ++m)
 								scores[m] = metrics.get(m).initialDistribution.unreduce(problem.metricKnowledge.get(metrics.get(m)).next());
-							
+
 							// Input: double[] containing scores for each metric for a single problem.
 							// Output: aggregated score as a double.
 							script.put("metrics", scores);
@@ -231,10 +222,11 @@ public class Main
 			computeKnowledge(params[i], metric);
 		}
 		if (metric == null) computeStats(params);
-		else {
+		else
+		{
 			// add-on here to track local KT Parameters for each metric in the context of aggregted KT
 			if (metricsKTParams == null) metricsKTParams = new HashMap<Metric, KTParameters[]>();
-			metricsKTParams.put(metric, params); 
+			metricsKTParams.put(metric, params);
 		}
 	}
 
@@ -261,8 +253,7 @@ public class Main
 	 * 4) Reduces and centers metric scores between 0 and 1 if <code>centerMetrics</code> is true. */
 	static void cleanSequences(boolean center, boolean centerMetrics)
 	{
-		allSequences.removeIf(new Predicate<Sequence>()
-		{
+		allSequences.removeIf(new Predicate<Sequence>() {
 			@Override
 			public boolean test(Sequence t)
 			{
@@ -287,6 +278,17 @@ public class Main
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
 					problem.score = (problem.score - min) / (max - min);
+
+			min = Double.MAX_VALUE;
+			max = -Double.MAX_VALUE;
+			for (Sequence sequence : allSequences)
+				for (Problem problem : sequence.problems)
+					if (problem.expectedKnowledge < min) min = problem.expectedKnowledge;
+					else if (problem.expectedKnowledge > max) max = problem.expectedKnowledge;
+
+			for (Sequence sequence : allSequences)
+				for (Problem problem : sequence.problems)
+					problem.expectedKnowledge = (problem.expectedKnowledge - min) / (max - min);
 		}
 
 		if (metrics.size() != 0 && centerMetrics)
@@ -330,9 +332,7 @@ public class Main
 		{
 			kStart += sequence.knowledgeSequence.get(0);
 			++count;
-			/* Tried using more than one for starting knowledge, but had close to no impact.
-			 *  if (sequence.knowledgeSequence.size() > 1) { kStart += sequence.knowledgeSequence.get(1); ++s; } 
-			 *  if (sequence.knowledgeSequence.size() > 2) { kStart += sequence.knowledgeSequence.get(2); ++s; } */
+			/* Tried using more than one for starting knowledge, but had close to no impact. if (sequence.knowledgeSequence.size() > 1) { kStart += sequence.knowledgeSequence.get(1); ++s; } if (sequence.knowledgeSequence.size() > 2) { kStart += sequence.knowledgeSequence.get(2); ++s; } */
 		}
 		kStart /= count;
 
@@ -399,72 +399,61 @@ public class Main
 					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
 					if (aggregated && problem.aggregatedKnowledge == null) continue;
 
-					if (threshold == -1) precision += Math.pow(sequence.finalProblem().expectedKnowledge
-							- (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean, 2)
-							/ problems;
+					if (threshold == -1) precision += Math
+							.pow(sequence.finalProblem().expectedKnowledge - (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean, 2) / problems;
 					else precision += Math.pow(sequence.finalProblem().expectedKnowledge
-							- ((aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean >= threshold ? 1 : 0), 2)
-							/ problems;
+							- ((aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean >= threshold ? 1 : 0), 2) / problems;
 				}
 		}
 
 		return Math.sqrt(precision / sequences.size());
 	}
-	
+
 	/** Add on by Nicolas for the DOLAP paper **/
-	
+
 	/** @param aggregated - If true, will compute the average of the last L(n) value for each sequence of problems for the aggregated Knowledge.
-	 * @return The average L(n) value of the last problem in each of the input sequences. 
-	 * Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
+	 * @return The average L(n) value of the last problem in each of the input sequences. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
 	private static double computeAverageLearning(ArrayList<Sequence> sequences, boolean aggregated)
 	{
-		double sumLearning = 0;	// contains the sum of all P(Ln) for the last problem of the input sequences
+		double sumLearning = 0; // contains the sum of all P(Ln) for the last problem of the input sequences
 		for (Sequence sequence : sequences)
 		{
-			sumLearning += (aggregated)? sequence.finalProblem().aggregatedKnowledge.mean : sequence.finalProblem().knowledge.mean;
+			sumLearning += (aggregated) ? sequence.finalProblem().aggregatedKnowledge.mean : sequence.finalProblem().knowledge.mean;
 		}
 		return sumLearning / sequences.size();
 	}
-	
-	
+
 	private static double computeDeviationLearning(ArrayList<Sequence> sequences, boolean aggregated, double average)
 	{
-		double sumLearning = 0;	// contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
+		double sumLearning = 0; // contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
 		for (Sequence sequence : sequences)
 		{
-			sumLearning += (aggregated)? Math.pow(sequence.finalProblem().aggregatedKnowledge.mean - average,2) : Math.pow(sequence.finalProblem().knowledge.mean - average,2);
+			sumLearning += (aggregated) ? Math.pow(sequence.finalProblem().aggregatedKnowledge.mean - average, 2)
+					: Math.pow(sequence.finalProblem().knowledge.mean - average, 2);
 		}
 		return Math.sqrt(sumLearning / sequences.size());
 	}
-	
-	/** 
-	 * @return The average L(n) value of the last problem in each of the input sequences based on the real helfulness score
-	 * not the ones outputed by one of our model. 
-	 * Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
+
+	/** @return The average L(n) value of the last problem in each of the input sequences based on the real helfulness score not the ones outputed by one of our model. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
 	private static double computeAverageExpectedLearning(ArrayList<Sequence> sequences)
 	{
-		double sumLearning = 0;	// contains the sum of all P(Ln) for the last problem of the input sequences
+		double sumLearning = 0; // contains the sum of all P(Ln) for the last problem of the input sequences
 		for (Sequence sequence : sequences)
 		{
 			sumLearning += sequence.finalProblem().expectedKnowledge;
 		}
 		return sumLearning / sequences.size();
 	}
-	
+
 	private static double computeDeviationExpectedLearning(ArrayList<Sequence> sequences, double average)
 	{
-		double sumLearning = 0;	// contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
+		double sumLearning = 0; // contains the sum of all deviations from P(Ln) to the average of P(Ln) for the last problem of the input sequences
 		for (Sequence sequence : sequences)
 		{
 			sumLearning += Math.pow(sequence.finalProblem().expectedKnowledge - average, 2);
 		}
 		return Math.sqrt(sumLearning / sequences.size());
 	}
-	
-	
-	
-	
-	
 
 	/** Uses the metrics to calculate the score of each problem.
 	 * 
@@ -526,9 +515,9 @@ public class Main
 			guess += parametersArray[i].guess.mean;
 			slip += parametersArray[i].slip.mean;
 		}
-		
+
 		// EDIT: NICO change here parametersArray.length by parametersArray.length - 2
-		start /= (parametersArray.length - 2);  
+		start /= (parametersArray.length - 2);
 		transition /= (parametersArray.length - 2);
 		guess /= (parametersArray.length - 2);
 		slip /= (parametersArray.length - 2);
@@ -538,7 +527,7 @@ public class Main
 
 		// EDIT: NICO change here for sGuess and sSlip that are now considered as mean of their Gaussian distributions
 		// I don not take into account the variation around the mean here to compute the standard deviation
-		
+
 		for (int i = 0; i < parametersArray.length - 2; ++i)
 		{
 			sStart += Math.pow(parametersArray[i].startKnowledge - start, 2);
@@ -546,34 +535,22 @@ public class Main
 			sGuess += Math.pow(parametersArray[i].guess.mean - guess, 2);
 			sSlip += Math.pow(parametersArray[i].slip.mean - slip, 2);
 		}
-		
-		sStart = Math.sqrt(sStart / (parametersArray.length - 2)); 
+
+		sStart = Math.sqrt(sStart / (parametersArray.length - 2));
 		sTransition = Math.sqrt(sTransition / (parametersArray.length - 2));
 		sGuess = Math.sqrt(sGuess / (parametersArray.length - 2));
-		sSlip = Math.sqrt(sSlip / (parametersArray.length - 2)); 
+		sSlip = Math.sqrt(sSlip / (parametersArray.length - 2));
 
 		parametersArray[validations] = new KTParameters(start, transition, new Gaussian(guess, sGuess), new Gaussian(slip, sSlip));
 		parametersArray[validations + 1] = new KTParameters(sStart, sTransition, null, null);
 
-		
-		/*
-		 * Old version more complex proposed by Clement. Maybe we should stick with it?
+		/* Old version more complex proposed by Clement. Maybe we should stick with it?
 		 * 
-		for (int i = 0; i < parametersArray.length - 2; ++i)
-		{
-			sStart += Math.pow(parametersArray[i].startKnowledge - start, 2);
-			sTransition += Math.pow(parametersArray[i].transition - transition, 2);
-			sGuess += Math.pow(parametersArray[i].guess.mean, 2) + Math.pow(parametersArray[i].guess.variation, 2);
-			sSlip += Math.pow(parametersArray[i].slip.mean, 2) + Math.pow(parametersArray[i].slip.variation, 2);
-		}
-		sStart = Math.sqrt(sStart / parametersArray.length); 
-		sTransition = Math.sqrt(sTransition / parametersArray.length);
-		sGuess = Math.sqrt(sGuess / parametersArray.length - Math.pow(guess, 2));
-		sSlip = Math.sqrt(sSlip / parametersArray.length - Math.pow(slip, 2));
-
-		parametersArray[validations] = new KTParameters(start, transition, new Gaussian(guess, sGuess), new Gaussian(slip, sSlip));
-		parametersArray[validations + 1] = new KTParameters(sStart, sTransition, null, null);		
-		*/
+		 * for (int i = 0; i < parametersArray.length - 2; ++i) { sStart += Math.pow(parametersArray[i].startKnowledge - start, 2); sTransition += Math.pow(parametersArray[i].transition - transition, 2); sGuess += Math.pow(parametersArray[i].guess.mean, 2) +
+		 * Math.pow(parametersArray[i].guess.variation, 2); sSlip += Math.pow(parametersArray[i].slip.mean, 2) + Math.pow(parametersArray[i].slip.variation, 2); } sStart = Math.sqrt(sStart / parametersArray.length); sTransition = Math.sqrt(sTransition / parametersArray.length); sGuess =
+		 * Math.sqrt(sGuess / parametersArray.length - Math.pow(guess, 2)); sSlip = Math.sqrt(sSlip / parametersArray.length - Math.pow(slip, 2));
+		 * 
+		 * parametersArray[validations] = new KTParameters(start, transition, new Gaussian(guess, sGuess), new Gaussian(slip, sSlip)); parametersArray[validations + 1] = new KTParameters(sStart, sTransition, null, null); */
 	}
 
 	/** @param aggregated - If true, will compute the variation for the aggregated Knowledge.
@@ -668,6 +645,7 @@ public class Main
 		{
 			CSVParser parser = CSVParser.parse(input, Charset.defaultCharset(), CSVFormat.DEFAULT);
 
+			int lines = 0;
 			for (CSVRecord record : parser)
 				if (parser.getCurrentLineNumber() == 1)
 				{
@@ -681,6 +659,8 @@ public class Main
 						else if (record.get(i).equals("score")) score = i;
 						for (Metric metric : metrics)
 							if (record.get(i).equals(metric.name)) metricIndex.put(metric, i);
+
+						if (expectedKnowledge == -1) expectedKnowledge = score;
 					}
 					for (Metric metric : metrics)
 						if (!metricIndex.containsKey(metric))
@@ -698,6 +678,8 @@ public class Main
 					for (Metric metric : metrics)
 						p.metricScores.put(metric, Utils.parseDouble(record.get(metricIndex.get(metric))));
 					sequence.problems.add(p);
+					++lines;
+					if (lines % 10000 == 0) System.out.println(lines + " lines read.");
 				} catch (NumberFormatException e)
 				{
 					log("Error reading problem " + record.get(1) + ": " + e.getMessage());
@@ -792,7 +774,7 @@ public class Main
 		allSequences.clear();
 
 		// Stores the real parameters while applying on expected.
-		KTParameters[] params = mainParameters;
+		KTParameters[] params = mainParameters.clone();
 
 		for (Sequence sequence : sequences)
 			allSequences.add(sequence.asExpected());
@@ -804,7 +786,7 @@ public class Main
 
 		allSequences.clear();
 		allSequences.addAll(sequences);
-		mainParameters = params;
+		expectedParameters = params;
 	}
 
 	public static void log(String text)
@@ -844,9 +826,8 @@ public class Main
 		{
 			settings = new Properties();
 			settings.load(new FileInputStream(new File(propertiesPath)));
-			for (String property : new String[]
-			{ "aggregation_type", "aggregation_value", "correctness", "cross_validation", "input_file", "metric_threshold", "metrics", "output_metrics",
-					"output_params", "output_sequences", "scores", "smooth_rmse", "split" })
+			for (String property : new String[] { "aggregation_type", "aggregation_value", "correctness", "cross_validation", "input_file", "metric_threshold",
+					"metrics", "output_metrics", "output_params", "output_sequences", "scores", "smooth_rmse", "split" })
 				if (!settings.containsKey(property))
 				{
 					log("Missing setting: " + property);
@@ -860,7 +841,8 @@ public class Main
 
 		if (!createMetrics(settings.getProperty("metrics"),
 				settings.getProperty("aggregation_type").equals("weights") ? settings.getProperty("aggregation_value") : null,
-				settings.getProperty("metric_threshold"))) return;
+				settings.getProperty("metric_threshold")))
+			return;
 
 		File sequences = new File(settings.getProperty("input_file"));
 		if (!sequences.exists())
@@ -903,14 +885,14 @@ public class Main
 		int s = 0;
 		for (Sequence sequence : allSequences)
 			if (sequence.problems.get(0).isCorrect) ++s;
-		System.out.println(s * 1. / allSequences.size());
+		System.out.println("Sequences starting with a correct problem: " + s * 100. / allSequences.size() + "%");
 
 		// Global percentage of correct problems
 		s = 0;
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
 				if (problem.isCorrect) ++s;
-		System.out.println(s * 1. / totalProblems);
+		System.out.println("Correct problems: " + s * 100. / totalProblems + "%");
 
 		// size of test train sets
 		try
@@ -927,7 +909,7 @@ public class Main
 		applyKnowledgeTracing(null);
 		for (Metric metric : metrics)
 			applyKnowledgeTracing(metric);
-		
+
 		// performance index of our model: smoothing the results based on several problems evaluations
 		findRepresentativeProblems();
 
@@ -935,13 +917,10 @@ public class Main
 
 		knowledgeTracingOnExpected();
 
-		/**
-		 * Edit by Nicolas: export when aggregated model is used a CSV file containing
-		 * all local KT models per metric
-		 **/
-		if (metrics.size() != 0 && !settings.getProperty("output_local_KT").equals("null")) 
+		/** Edit by Nicolas: export when aggregated model is used a CSV file containing all local KT models per metric **/
+		if (metrics.size() != 0 && !settings.getProperty("output_local_KT").equals("null"))
 			exportData(new File(PATH + settings.getProperty("output_local_KT")), outputMetricKTParams(metricsKTParams));
-		
+
 		if (!settings.getProperty("output_params").equals("null")) exportData(new File(PATH + settings.getProperty("output_params")), outputParams());
 		if (!settings.getProperty("output_sequences").equals("null")) exportData(new File(PATH + settings.getProperty("output_sequences")), outputProblems());
 		if (!settings.getProperty("output_metrics").equals("null")) exportData(new File(PATH + settings.getProperty("output_metrics")), outputMetrics());
@@ -975,9 +954,7 @@ public class Main
 		return data;
 	}
 
-	/** @return The data to output. 
-	 * EDIT by Nicolas 10/20/2017 to output average+- std deviation on last problem KT score P(Ln)
-	 * */
+	/** @return The data to output. EDIT by Nicolas 10/20/2017 to output average+- std deviation on last problem KT score P(Ln) */
 	private static String[][] outputParams()
 	{
 		String[][] output = new String[17][2];
@@ -1013,28 +990,28 @@ public class Main
 
 		output[10][0] = "Aggregated Variation";
 		output[10][1] = Utils.toString(computeVariation(allSequences, true));
-		
+
 		output[11][0] = "mean(Ln)";
 		double average = computeAverageLearning(allSequences, false);
 		output[11][1] = Utils.toString(average);
 
 		output[12][0] = "variation(Ln)";
 		output[12][1] = Utils.toString(computeDeviationLearning(allSequences, false, average));
-		
+
 		output[13][0] = "mean(Ln) Aggregated";
-		average = computeAverageLearning(allSequences, true);
+		average = metrics.size() == 0 ? 0 : computeAverageLearning(allSequences, true);
 		output[13][1] = Utils.toString(average);
 
 		output[14][0] = "variation(Ln) Aggregated";
-		output[14][1] = Utils.toString(computeDeviationLearning(allSequences, true, average));		
-		
+		output[14][1] = Utils.toString(metrics.size() == 0 ? 0 : computeDeviationLearning(allSequences, true, average));
+
 		output[15][0] = "mean(Ln) KT Helpfulness";
 		average = computeAverageExpectedLearning(allSequences);
 		output[15][1] = Utils.toString(average);
-		
+
 		output[16][0] = "variation(Ln) KT Helpfulness";
 		output[16][1] = Utils.toString(computeDeviationExpectedLearning(allSequences, average));
-		
+
 		return output;
 	}
 
@@ -1072,7 +1049,8 @@ public class Main
 				data[current][4] = problem.aggregatedKnowledge == null ? "N/A" : Utils.toString(problem.aggregatedKnowledge.mean);
 				data[current][5] = problem.aggregatedKnowledge == null ? "N/A" : Utils.toString(problem.aggregatedKnowledge.variation);
 				data[current][6] = threshold == -1 ? Utils.toString(problem.knowledge.mean) : problem.knowledge.mean > threshold ? "1" : "0";
-				data[current][7] = threshold == -1 ? Utils.toString(problem.aggregatedKnowledge.mean) : problem.aggregatedKnowledge == null ? "N/A" : problem.aggregatedKnowledge.mean > threshold ? "1" : "0";
+				data[current][7] = threshold == -1 ? problem.aggregatedKnowledge == null ? "N/A" : Utils.toString(problem.aggregatedKnowledge.mean)
+						: problem.aggregatedKnowledge.mean > threshold ? "1" : "0";
 				data[current][8] = Utils.toString(problem.expectedKnowledge);
 				data[current][9] = Utils.toString(rmse);
 				++current;
@@ -1105,52 +1083,51 @@ public class Main
 					data[current][0] = problem.name;
 					for (int i = 0; i < metrics.size(); ++i)
 						data[current][i + 1] = Utils.toString(metrics.get(i).initialDistribution.unreduce(problem.metricScores.get(metrics.get(i))));
-					data[current][1 + metrics.size()] = binary && threshold !=-1 ? problem.expectedKnowledge >= threshold ? "1" : "0" : Utils.toString(problem.expectedKnowledge);
+					data[current][1 + metrics.size()] = binary && threshold != -1 ? problem.expectedKnowledge >= threshold ? "1" : "0"
+							: Utils.toString(problem.expectedKnowledge);
 					++current;
 				}
 
 		return data;
 	}
-	
-	/**
-	 * Function that outputs a String[][] table, each row describing the KT parameters for
-	 * one specific metric, in the case of aggregated KT
-	 * @return
-	 */
-	private static String[][] outputMetricKTParams(HashMap<Metric, KTParameters[]> metricsKTParams){
-		
+
+	/** Function that outputs a String[][] table, each row describing the KT parameters for one specific metric, in the case of aggregated KT
+	 * 
+	 * @return */
+	private static String[][] outputMetricKTParams(HashMap<Metric, KTParameters[]> metricsKTParams)
+	{
+
 		String[][] output = new String[metricsKTParams.size() + 1][11];
-		String[] tmp = {"Metric name", "P(L0)", "V(L0)", "P(T)", "V(T)", "P(G)", "V(G)", "P(S)", "V(S)", "P(Ln)", "V(Ln)"};
+		String[] tmp = { "Metric name", "P(L0)", "V(L0)", "P(T)", "V(T)", "P(G)", "V(G)", "P(S)", "V(S)", "P(Ln)", "V(Ln)" };
 		output[0] = tmp;
-		
+
 		int cpt = 0;
-		for (Metric m : metricsKTParams.keySet()) {
-			cpt ++;
+		for (Metric m : metricsKTParams.keySet())
+		{
+			cpt++;
 			output[cpt][0] = m.name;
-			
-			/** 
-			 * Compute KT parameters
-			 */
+
+			/** Compute KT parameters */
 			KTParameters[] param = metricsKTParams.get(m);
-			
+
 			// Mean
 			double start = 0, transition = 0, guess = 0, slip = 0;
-			for (int i = 0; i < param.length - 2; ++i)				// -2 because param.length = 12 but only the 10 first values are useable
+			for (int i = 0; i < param.length - 2; ++i) // -2 because param.length = 12 but only the 10 first values are useable
 			{
 				start += param[i].startKnowledge;
 				transition += param[i].transition;
 				guess += param[i].guess.mean;
 				slip += param[i].slip.mean;
 			}
-			
+
 			start /= (param.length - 2);
 			transition /= (param.length - 2);
 			guess /= (param.length - 2);
 			slip /= (param.length - 2);
-			
+
 			// Variation
 			double sStart = 0, sTransition = 0, sGuess = 0, sSlip = 0;
-			
+
 			for (int i = 0; i < param.length - 2; ++i)
 			{
 				sStart += Math.pow(param[i].startKnowledge - start, 2);
@@ -1158,31 +1135,26 @@ public class Main
 				sGuess += Math.pow(param[i].guess.mean - guess, 2);
 				sSlip += Math.pow(param[i].slip.mean - slip, 2);
 			}
-			
-			sStart = Math.sqrt(sStart / (param.length - 2)); 
+
+			sStart = Math.sqrt(sStart / (param.length - 2));
 			sTransition = Math.sqrt(sTransition / (param.length - 2));
 			sGuess = Math.sqrt(sGuess / (param.length - 2));
 			sSlip = Math.sqrt(sSlip / (param.length - 2));
-			
-			/** 
-			 * Export these values to string in the output table
-			 * */
+
+			/** Export these values to string in the output table */
 			output[cpt][1] = Utils.toString(start);
 			output[cpt][2] = Utils.toString(sStart);
-			
+
 			output[cpt][3] = Utils.toString(transition);
 			output[cpt][4] = Utils.toString(sTransition);
-			
+
 			output[cpt][5] = Utils.toString(guess);
 			output[cpt][6] = Utils.toString(sGuess);
-			
+
 			output[cpt][7] = Utils.toString(slip);
 			output[cpt][8] = Utils.toString(sSlip);
-	
-			
-			/**
-			 * Now let's try to get average(P(Ln)) and variation(P(Ln)) for each metric on the set of sequences
-			 * */
+
+			/** Now let's try to get average(P(Ln)) and variation(P(Ln)) for each metric on the set of sequences */
 			double PLn = 0; // Values for P(Ln)
 			double PLn2 = 0; // Squared values for P(Ln) used to compute the std dev
 			for (Sequence sequence : allSequences)
@@ -1193,11 +1165,11 @@ public class Main
 			// Averaging
 			PLn /= allSequences.size(); // E(X)
 			PLn2 /= allSequences.size(); // E(X^2)
-			
+
 			output[cpt][9] = Utils.toString(PLn);
 			output[cpt][10] = Utils.toString(Math.sqrt(PLn2 - Math.pow(PLn, 2))); // sigma(x) = sqrt(E(X^2) - E(X)^2)
 		} // end for metrics m ...
-		
+
 		return output;
 	}
 }

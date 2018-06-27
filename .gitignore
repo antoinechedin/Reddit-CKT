@@ -118,3 +118,4 @@ local.properties
 *.csv
 *.txt
 *jar
+.~lock.results.csv#
