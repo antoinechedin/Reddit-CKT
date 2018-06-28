@@ -43,7 +43,7 @@ public class Main
 	static ArrayList<String> log = new ArrayList<String>();
 	/** The parameters for main Knowledge. */
 	static KTParameters[] mainParameters;
-	static boolean maxSet = false;
+	static boolean maxSet = false, minSet = false;
 	/** The available metrics. */
 	static ArrayList<Metric> metrics;
 	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
@@ -236,6 +236,7 @@ public class Main
 	/** Uses the input <code>threshold</code> to determine the correctness of the problem. */
 	private static void applyThreshold(double threshold)
 	{
+		// threshold = Math.log(threshold);// TODO comment this if not necessary. Used for reddit
 		threshold -= minScore;
 		threshold /= maxScore;
 		for (Sequence sequence : allSequences)
@@ -274,14 +275,13 @@ public class Main
 
 		if (center)
 		{
-			minScore = Double.MAX_VALUE;
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					if (problem.score < minScore) minScore = problem.score;
+					if (!minSet && problem.score < minScore) minScore = problem.score;
 					else if (!maxSet && problem.score > maxScore) maxScore = problem.score;
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					if (problem.groundTruth < minScore) minScore = problem.groundTruth;
+					if (!minSet && problem.groundTruth < minScore) minScore = problem.groundTruth;
 					else if (!maxSet && problem.groundTruth > maxScore) maxScore = problem.groundTruth;
 
 			for (Sequence sequence : allSequences)
@@ -289,13 +289,11 @@ public class Main
 				{
 					problem.score = (problem.score - minScore) / (maxScore - minScore);
 					if (problem.score > 1) problem.score = 1;
-				}
+					if (problem.score < 0) problem.score = 0;
 
-			for (Sequence sequence : allSequences)
-				for (Problem problem : sequence.problems)
-				{
 					problem.groundTruth = (problem.groundTruth - minScore) / (maxScore - minScore);
 					if (problem.groundTruth > 1) problem.groundTruth = 1;
+					if (problem.groundTruth < 0) problem.groundTruth = 0;
 				}
 		}
 
@@ -463,6 +461,29 @@ public class Main
 		return Math.sqrt(precision / sequences.size());
 	}
 
+	/** @param aggregated - If true, will compute the Precision for the aggregated Knowledge.
+	 * @return The Precision for the Knowledge for the input sequences. */
+	private static double computeInitialPrecision(ArrayList<Sequence> sequences)
+	{
+		double precision = 0;
+		int problems;// Number of representative problems in current sequence
+		double threshold = settings.getProperty("expected_binary").equals("false") ? -1 : Double.parseDouble(settings.getProperty("expected_binary"));
+		for (Sequence sequence : sequences)
+		{
+			problems = -1;
+			for (Problem problem : sequence.problems)
+				if (problem.isRepresentative)
+				{
+					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
+
+					if (threshold == -1) precision += Math.pow(sequence.finalProblem().groundTruth - problem.score, 2) / problems;
+					else precision += Math.pow(sequence.finalProblem().groundTruth - (problem.score >= threshold ? 1 : 0), 2) / problems;
+				}
+		}
+
+		return Math.sqrt(precision / sequences.size());
+	}
+
 	/** Uses the metrics to calculate the score of each problem.
 	 * 
 	 * @return True if it succeeded. */
@@ -484,6 +505,8 @@ public class Main
 					// if (allSequences.indexOf(sequence) <= 10 && d == 0) log();
 					for (Metric metric : metrics)
 						problem.score += metric.weight * problem.metricScores.get(metric);
+
+					// problem.score = problem.score <= 0 ? 0 : Math.log(problem.score);// TODO comment this if not necessary. Used for reddit
 
 				} else try
 				{
@@ -577,6 +600,27 @@ public class Main
 					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
 					if (aggregated && problem.aggregatedKnowledge == null) continue;
 					variation += (aggregated ? sequence.finalProblem().aggregatedKnowledge : sequence.finalProblem().knowledge).variation / problems;
+				}
+		}
+
+		return variation / count;
+	}
+
+	/** @param aggregated - If true, will compute the variation for the aggregated Knowledge.
+	 * @return The variation for the final Knowledge for the input sequences. */
+	private static double computeInitialVariation(ArrayList<Sequence> sequences)
+	{
+		double variation = 0;
+		int count = 0, problems = -1;
+		for (Sequence sequence : sequences)
+		{
+			problems = -1;
+			++count;
+			for (Problem problem : sequence.problems)
+				if (problem.isRepresentative)
+				{
+					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
+					variation += sequence.finalProblem().score / problems;
 				}
 		}
 
@@ -683,6 +727,11 @@ public class Main
 					p.groundTruth = Utils.parseDouble(record.get(expectedKnowledge));
 					p.isCorrect = correctness == -1 ? false : record.get(correctness).equals("1");
 					p.score = score == -1 ? 0 : Utils.parseDouble(record.get(score));
+
+					// TODO comment this if not necessary. Used for reddit
+					// p.score = p.score <= 0 ? 0 : Math.log(p.score);
+					// p.groundTruth = p.groundTruth <= 0 ? 0 : Math.log(p.groundTruth);
+
 					for (Metric metric : metrics)
 						p.metricScores.put(metric, Utils.parseDouble(record.get(metricIndex.get(metric))));
 					sequence.problems.add(p);
@@ -865,6 +914,8 @@ public class Main
 		learningSet = new ArrayList<Sequence>();
 		maxScore = settings.getProperty("max_score").equals("null") ? -Double.MAX_VALUE : Double.parseDouble(settings.getProperty("max_score"));
 		if (!settings.getProperty("max_score").equals("null")) maxSet = true;
+		minScore = settings.getProperty("min_score").equals("null") ? Double.MAX_VALUE : Double.parseDouble(settings.getProperty("min_score"));
+		if (!settings.getProperty("min_score").equals("null")) minSet = true;
 		if (!createSequences(allSequences, sequences)) return;
 		// Deprecated: not in use => weights are provided in the settings
 		if (settings.getProperty("scores").equals("compute")) computeScores();
@@ -892,18 +943,6 @@ public class Main
 			log("Incorrect value for max noise: " + settings.getProperty("split"));
 			return;
 		}
-		// Percentage of sequences starting with a correct problem
-		int s = 0;
-		for (Sequence sequence : allSequences)
-			if (sequence.problems.get(0).isCorrect) ++s;
-		System.out.println("Sequences starting with a correct problem: " + s * 100. / allSequences.size() + "%");
-
-		// Global percentage of correct problems
-		s = 0;
-		for (Sequence sequence : allSequences)
-			for (Problem problem : sequence.problems)
-				if (problem.isCorrect) ++s;
-		System.out.println("Correct problems: " + s * 100. / totalProblems + "%");
 
 		// size of test train sets
 		try
@@ -1053,7 +1092,7 @@ public class Main
 	/** @return The data to output. EDIT by Nicolas 10/20/2017 to output average+- std deviation on last problem KT score P(Ln) */
 	private static String[][] outputParams()
 	{
-		String[][] output = new String[17][2];
+		String[][] output = new String[21][2];
 		output[0][0] = "param";
 		output[0][1] = "value";
 
@@ -1108,6 +1147,25 @@ public class Main
 
 		output[16][0] = "variation(Ln) KT Helpfulness";
 		output[16][1] = Utils.toString(computeDeviationExpectedLearning(allSequences, average));
+
+		output[17][0] = "Score Precision";
+		output[17][1] = Utils.toString(computeInitialPrecision(allSequences));
+
+		output[18][0] = "Score Variation";
+		output[18][1] = Utils.toString(computeInitialVariation(allSequences));
+
+		int s = 0;
+		for (Sequence sequence : allSequences)
+			if (sequence.problems.get(0).isCorrect) ++s;
+		output[19][0] = "Correct starts";
+		output[19][1] = Utils.toString(s * 1. / allSequences.size());
+
+		s = 0;
+		for (Sequence sequence : allSequences)
+			for (Problem problem : sequence.problems)
+				if (problem.isCorrect) ++s;
+		output[20][0] = "Correct problems";
+		output[20][1] = Utils.toString(s * 1. / totalProblems);
 
 		return output;
 	}
