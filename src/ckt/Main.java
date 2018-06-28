@@ -199,7 +199,28 @@ public class Main
 				}
 			if (invalid != 0) log("Found " + invalid + " invalid knowledge values!");
 		}
+
+		// Center new metric values
+
+		double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
+		for (Sequence sequence : allSequences)
+			for (Problem problem : sequence.problems)
+			{
+				double value = problem.aggregatedKnowledge.mean;
+				if (value < min) min = value;
+				if (value > max) max = value;
+			}
+
+		max = max + min;
+		for (Sequence sequence : allSequences)
+			for (Problem problem : sequence.problems)
+			{
+				Gaussian value = problem.aggregatedKnowledge;
+				problem.aggregatedKnowledge = new Gaussian((value.mean - min) / max, value.variation);
+			}
+
 		return true;
+
 	}
 
 	private static void applyKnowledgeTracing(Metric metric)
@@ -366,6 +387,50 @@ public class Main
 		return Math.sqrt(sumLearning / sequences.size());
 	}
 
+	/** @param aggregated - If true, will compute the Precision for the aggregated Knowledge.
+	 * @return The Precision for the Knowledge for the input sequences. */
+	private static double computeInitialPrecision(ArrayList<Sequence> sequences)
+	{
+		double precision = 0;
+		int problems;// Number of representative problems in current sequence
+		double threshold = settings.getProperty("expected_binary").equals("false") ? -1 : Double.parseDouble(settings.getProperty("expected_binary"));
+		for (Sequence sequence : sequences)
+		{
+			problems = -1;
+			for (Problem problem : sequence.problems)
+				if (problem.isRepresentative)
+				{
+					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
+
+					if (threshold == -1) precision += Math.pow(sequence.finalProblem().groundTruth - problem.score, 2) / problems;
+					else precision += Math.pow(sequence.finalProblem().groundTruth - (problem.score >= threshold ? 1 : 0), 2) / problems;
+				}
+		}
+
+		return Math.sqrt(precision / sequences.size());
+	}
+
+	/** @param aggregated - If true, will compute the variation for the aggregated Knowledge.
+	 * @return The variation for the final Knowledge for the input sequences. */
+	private static double computeInitialVariation(ArrayList<Sequence> sequences)
+	{
+		double variation = 0;
+		int count = 0, problems = -1;
+		for (Sequence sequence : sequences)
+		{
+			problems = -1;
+			++count;
+			for (Problem problem : sequence.problems)
+				if (problem.isRepresentative)
+				{
+					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
+					variation += sequence.finalProblem().score / problems;
+				}
+		}
+
+		return variation / count;
+	}
+
 	/** Computes the Knowledge of the Sequences. */
 	private static void computeKnowledge(KTParameters parameters, Metric metric)
 	{
@@ -451,33 +516,14 @@ public class Main
 					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
 					if (aggregated && problem.aggregatedKnowledge == null) continue;
 
-					if (threshold == -1) precision += Math
-							.pow(sequence.finalProblem().expectedKnowledge - (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean, 2) / problems;
-					else precision += Math.pow(sequence.finalProblem().expectedKnowledge
+					if (threshold == -1)
+					{
+						precision += Math.pow(sequence.finalProblem().expectedKnowledge - (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean,
+								2) / problems;
+						/* if (Math.pow(sequence.finalProblem().expectedKnowledge - (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean, 2) / problems > 1) { System.out.println((aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean); System.out.println(
+						 * Math.pow(sequence.finalProblem().expectedKnowledge - (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean, 2) / problems); } */
+					} else precision += Math.pow(sequence.finalProblem().expectedKnowledge
 							- ((aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean >= threshold ? 1 : 0), 2) / problems;
-				}
-		}
-
-		return Math.sqrt(precision / sequences.size());
-	}
-
-	/** @param aggregated - If true, will compute the Precision for the aggregated Knowledge.
-	 * @return The Precision for the Knowledge for the input sequences. */
-	private static double computeInitialPrecision(ArrayList<Sequence> sequences)
-	{
-		double precision = 0;
-		int problems;// Number of representative problems in current sequence
-		double threshold = settings.getProperty("expected_binary").equals("false") ? -1 : Double.parseDouble(settings.getProperty("expected_binary"));
-		for (Sequence sequence : sequences)
-		{
-			problems = -1;
-			for (Problem problem : sequence.problems)
-				if (problem.isRepresentative)
-				{
-					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
-
-					if (threshold == -1) precision += Math.pow(sequence.finalProblem().groundTruth - problem.score, 2) / problems;
-					else precision += Math.pow(sequence.finalProblem().groundTruth - (problem.score >= threshold ? 1 : 0), 2) / problems;
 				}
 		}
 
@@ -606,27 +652,6 @@ public class Main
 		return variation / count;
 	}
 
-	/** @param aggregated - If true, will compute the variation for the aggregated Knowledge.
-	 * @return The variation for the final Knowledge for the input sequences. */
-	private static double computeInitialVariation(ArrayList<Sequence> sequences)
-	{
-		double variation = 0;
-		int count = 0, problems = -1;
-		for (Sequence sequence : sequences)
-		{
-			problems = -1;
-			++count;
-			for (Problem problem : sequence.problems)
-				if (problem.isRepresentative)
-				{
-					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
-					variation += sequence.finalProblem().score / problems;
-				}
-		}
-
-		return variation / count;
-	}
-
 	private static boolean createMetrics(String inputMetrics, String inputWeight, String inputThreshold)
 	{
 		metrics = new ArrayList<Metric>();
@@ -663,7 +688,7 @@ public class Main
 					inputThreshold = inputThreshold.substring(1, inputThreshold.length() - 1).replaceAll(" ", "");
 					if (inputThreshold.equals("")) return true;
 					String[] t = inputThreshold.split(",");
-					for (int i = 0; i < t.length; ++i)
+					for (int i = 0; i < t.length && i < metrics.size(); ++i)
 					{
 						if (t[i].startsWith("<")) metrics.get(i).thresholdReversed = true;
 						if (t[i].startsWith("<") || t[i].startsWith(">")) t[i] = t[i].substring(1);

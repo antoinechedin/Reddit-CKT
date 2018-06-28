@@ -73,6 +73,7 @@ public class Sequence implements Comparable<Sequence>
 		else this.problems.get(n).metricKnowledge.put(metric, k);
 
 		/* if (Main.allSequences.indexOf(this) == 0) System.out.println((metric == null ? "general" : metric.name) + ", " + n + " : " + this.problems.get(n).knowledge); */
+		if (metric != null) return this.problems.get(n).metricKnowledge.get(metric);
 		return this.problems.get(n).knowledge;
 	}
 
@@ -106,7 +107,8 @@ public class Sequence implements Comparable<Sequence>
 			sDenom += this.knowledgeSequence.get(i);
 		}
 
-		this.parameters = new KTParameters(startKnowledge, tNum / tDenom, new Gaussian(gNum / gDenom), new Gaussian(sNum / sDenom));
+		this.parameters = new KTParameters(startKnowledge, tDenom == 0 ? 0 : tNum / tDenom, new Gaussian(gDenom == 0 ? 0 : gNum / gDenom),
+				new Gaussian(sDenom == 0 ? 0 : sNum / sDenom));
 	}
 
 	/** @return The last Problem of this Sequence. */
@@ -121,8 +123,7 @@ public class Sequence implements Comparable<Sequence>
 		/* this.idealKnowledge = new ArrayList<Boolean>(); for (Problem problem : this.problems) this.idealKnowledge.add(problem.isFocused); */
 
 		ArrayList<ArrayList<Boolean>> sequences = this.possibleKnowledgeSequences();
-		sequences.sort(new Comparator<ArrayList<Boolean>>()
-		{
+		sequences.sort(new Comparator<ArrayList<Boolean>>() {
 			@Override
 			public int compare(ArrayList<Boolean> o1, ArrayList<Boolean> o2)
 			{

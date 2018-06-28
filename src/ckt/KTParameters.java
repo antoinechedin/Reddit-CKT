@@ -38,7 +38,7 @@ public class KTParameters
 		@Override
 		public String toString()
 		{
-			return "(" + this.mean + ", " + this.variation + ")";
+			return "(" + Utils.toString(this.mean) + ", " + Utils.toString(this.variation) + ")";
 		}
 
 		/** Apologies for the non-scientific method name.
@@ -67,6 +67,21 @@ public class KTParameters
 		this.transition = transition;
 		this.guess = guess;
 		this.slip = slip;
+	}
+
+	@Override
+	public String toString()
+	{
+		StringBuilder sb = new StringBuilder();
+		sb.append("L0: ");
+		sb.append(Utils.toString(this.startKnowledge));
+		sb.append(", T: ");
+		sb.append(Utils.toString(this.transition));
+		sb.append(", G: ");
+		sb.append(this.slip.toString());
+		sb.append(", S: ");
+		sb.append(this.guess.toString());
+		return sb.toString();
 	}
 
 }

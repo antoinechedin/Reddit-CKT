@@ -29,4 +29,10 @@ public class Metric implements Comparable<Metric>
 		return this.name.compareTo(o.name);
 	}
 
+	@Override
+	public String toString()
+	{
+		return this.name;
+	}
+
 }
