@@ -211,7 +211,7 @@ public class Main
 				if (value > max) max = value;
 			}
 
-		max = max + min;
+		max -= min;
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
 			{
