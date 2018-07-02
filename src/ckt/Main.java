@@ -46,7 +46,7 @@ public class Main
 	static boolean maxSet = false, minSet = false;
 	/** The available metrics. */
 	static ArrayList<Metric> metrics;
-	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the contexte of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
+	static HashMap<Metric, KTParameters[]> metricsKTParams; // In the context of the aggregated KT, indicates for each metric the parameters of the sub-skill KT corresponding to this metric
 	static double minScore, maxScore;
 	/** path to output / input directory **/
 	final static String PATH = "";// "D:\\Workspace\\KnowledgeTracing\\";
@@ -56,11 +56,13 @@ public class Main
 	static ArrayList<Sequence> testingSet;
 	/** The number of Sequences to use as testing set for each step in cross validation. */
 	static int testingSize;
+	/** Correctness threshold. */
+	static double threshold;
 	/** The total number of problems. */
 	static int totalProblems;
 	/** The number of steps in cross validation. */
 	static int validations;
-
+	
 	/** Aggregates Knowledge found for each metric.
 	 * 
 	 * @return True if succeeded. */
@@ -231,6 +233,22 @@ public class Main
 		if (metric != null) applyThreshold(metric);
 		findKnowledgeSequences();
 
+		double corrects = 0, starts = 0, total = 0;
+		for (Sequence sequence : allSequences)
+		{
+			if (sequence.problems.get(0).isCorrect) ++starts;
+			for (Problem problem : sequence.problems)
+			{
+				if (problem.isCorrect) ++corrects;
+				++total;
+			}
+		}
+
+		starts = starts * 100 / allSequences.size();
+		corrects = corrects * 100 / total;
+		System.out.println("Correct starts: " + Utils.toString(starts) + "%");
+		System.out.println("Correct problems: " + Utils.toString(corrects) + "%");
+
 		KTParameters[] params = new KTParameters[validations + 2];
 		if (metric == null) mainParameters = params;
 
@@ -258,8 +276,6 @@ public class Main
 	private static void applyThreshold(double threshold)
 	{
 		// threshold = Math.log(threshold);// TODO comment this if not necessary. Used for reddit
-		threshold -= minScore;
-		threshold /= maxScore;
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
 				problem.isCorrect = problem.score >= threshold;
@@ -316,6 +332,8 @@ public class Main
 					if (problem.groundTruth > 1) problem.groundTruth = 1;
 					if (problem.groundTruth < 0) problem.groundTruth = 0;
 				}
+
+			threshold = (threshold - minScore) / maxScore;
 		}
 
 		if (metrics.size() != 0 && centerMetrics)
@@ -748,7 +766,8 @@ public class Main
 				} else try
 				{
 					Sequence sequence = findSequence(set, record.get(sequenceID));
-					Problem p = order == -1 ? new Problem(record.get(problemID)) : new Problem(record.get(problemID), Integer.parseInt(record.get(order)));
+					Problem p = order == -1 ? new Problem(record.get(problemID))
+							: new Problem(record.get(problemID), Double.valueOf(record.get(order)).intValue());
 					p.groundTruth = Utils.parseDouble(record.get(expectedKnowledge));
 					p.isCorrect = correctness == -1 ? false : record.get(correctness).equals("1");
 					p.score = score == -1 ? 0 : Utils.parseDouble(record.get(score));
@@ -783,17 +802,24 @@ public class Main
 	 * @param output - The output file to export the Sequences to. */
 	public static void exportData(File output, ArrayList<ArrayList<String>> data)
 	{
-		try
-		{
-			BufferedWriter bw = new BufferedWriter(new FileWriter(output));
-			CSVPrinter printer = new CSVPrinter(bw, CSVFormat.DEFAULT.withDelimiter(';'));
-			printer.printRecords(data);
-			printer.close();
-		} catch (IOException e)
-		{
-			log("Error creating output file: " + e.getMessage());
-			// e.printStackTrace();
-		}
+		@SuppressWarnings("resource")
+		Scanner sc = new Scanner(System.in);
+		boolean isWritten = false;
+		do
+			try
+			{
+				BufferedWriter bw = new BufferedWriter(new FileWriter(output));
+				CSVPrinter printer = new CSVPrinter(bw, CSVFormat.DEFAULT.withDelimiter(';'));
+				printer.printRecords(data);
+				printer.close();
+				isWritten = true;
+			} catch (IOException e)
+			{
+				log("Error creating output file: " + e.getMessage() + "\nPress enter to try again.");
+				sc.nextLine();
+				// e.printStackTrace();
+			}
+		while (!isWritten);
 	}
 
 	private static void exportData(File output, String[][] data)
@@ -861,6 +887,7 @@ public class Main
 		for (Sequence sequence : sequences)
 			allSequences.add(sequence.asExpected());
 
+		if (!settings.getProperty("correctness").equals("true")) applyThreshold(threshold);
 		applyKnowledgeTracing(null);
 		for (int seq = 0; seq < sequences.size(); ++seq)
 			for (int prob = 0; prob < sequences.get(seq).problems.size(); ++prob)
@@ -944,19 +971,22 @@ public class Main
 		if (!createSequences(allSequences, sequences)) return;
 		// Deprecated: not in use => weights are provided in the settings
 		if (settings.getProperty("scores").equals("compute")) computeScores();
-		cleanSequences(settings.getProperty("scores").equals("compute") || settings.getProperty("scores").equals("reduce"),
-				Boolean.parseBoolean(settings.getProperty("center_metrics")));
 
 		// For each exercise indicate if it is correct based on threshold
 		if (!settings.getProperty("correctness").equals("true")) try
 		{
-			log("Applying threshold: " + settings.getProperty("correctness"));
-			applyThreshold(Double.parseDouble(settings.getProperty("correctness")));
+			threshold = Double.parseDouble(settings.getProperty("correctness"));
 		} catch (Exception e)
 		{
 			log("Incorrect value for score threshold: " + settings.getProperty("correctness"));
 			return;
 		}
+
+		cleanSequences(settings.getProperty("scores").equals("compute") || settings.getProperty("scores").equals("reduce"),
+				Boolean.parseBoolean(settings.getProperty("center_metrics")));
+
+		// For each exercise indicate if it is correct based on threshold
+		if (!settings.getProperty("correctness").equals("true")) applyThreshold(threshold);
 
 		// Allow to split each sequence as two sessions
 		if (!settings.getProperty("split").equals("false")) try
