@@ -38,6 +38,8 @@ public class Main
 	static ArrayList<Sequence> allSequences;
 	/** The parameters for main Knowledge. */
 	static KTParameters[] expectedParameters;
+	/** When iterating over different thresholds, the value of the current one. -1 if no iteration. */
+	static int iterationThreshold = -1;
 	/** Stores the Sequences used as learning set. */
 	static ArrayList<Sequence> learningSet;
 	static ArrayList<String> log = new ArrayList<String>();
@@ -62,7 +64,7 @@ public class Main
 	static int totalProblems;
 	/** The number of steps in cross validation. */
 	static int validations;
-	
+
 	/** Aggregates Knowledge found for each metric.
 	 * 
 	 * @return True if succeeded. */
@@ -333,7 +335,7 @@ public class Main
 					if (problem.groundTruth < 0) problem.groundTruth = 0;
 				}
 
-			threshold = (threshold - minScore) / maxScore;
+			threshold = (threshold - minScore) / (maxScore - minScore);
 		}
 
 		if (metrics.size() != 0 && centerMetrics)
@@ -411,7 +413,6 @@ public class Main
 	{
 		double precision = 0;
 		int problems;// Number of representative problems in current sequence
-		double threshold = settings.getProperty("expected_binary").equals("false") ? -1 : Double.parseDouble(settings.getProperty("expected_binary"));
 		for (Sequence sequence : sequences)
 		{
 			problems = -1;
@@ -422,6 +423,26 @@ public class Main
 
 					if (threshold == -1) precision += Math.pow(sequence.finalProblem().groundTruth - problem.score, 2) / problems;
 					else precision += Math.pow(sequence.finalProblem().groundTruth - (problem.score >= threshold ? 1 : 0), 2) / problems;
+				}
+		}
+
+		return Math.sqrt(precision / sequences.size());
+	}
+
+	/** @return The Precision for the Knowledge for the input sequences. */
+	private static double computeInitialRMSE(ArrayList<Sequence> sequences)
+	{
+		double precision = 0;
+		int problems;// Number of representative problems in current sequence
+		for (Sequence sequence : sequences)
+		{
+			problems = -1;
+			for (Problem problem : sequence.problems)
+				if (problem.isRepresentative)
+				{
+					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
+
+					precision += Math.pow(sequence.finalProblem().groundTruth - problem.score, 2) / problems;
 				}
 		}
 
@@ -524,7 +545,6 @@ public class Main
 	{
 		double precision = 0;
 		int problems;// Number of representative problems in current sequence
-		double threshold = settings.getProperty("expected_binary").equals("false") ? -1 : Double.parseDouble(settings.getProperty("expected_binary"));
 		for (Sequence sequence : sequences)
 		{
 			problems = -1;
@@ -542,6 +562,29 @@ public class Main
 						 * Math.pow(sequence.finalProblem().expectedKnowledge - (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean, 2) / problems); } */
 					} else precision += Math.pow(sequence.finalProblem().expectedKnowledge
 							- ((aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean >= threshold ? 1 : 0), 2) / problems;
+				}
+		}
+
+		return Math.sqrt(precision / sequences.size());
+	}
+
+	/** @param aggregated - If true, will compute the Precision for the aggregated Knowledge.
+	 * @return The Precision for the Knowledge for the input sequences. */
+	private static double computeRMSE(ArrayList<Sequence> sequences, boolean aggregated)
+	{
+		double precision = 0;
+		int problems;// Number of representative problems in current sequence
+		for (Sequence sequence : sequences)
+		{
+			problems = -1;
+			for (Problem problem : sequence.problems)
+				if (problem.isRepresentative)
+				{
+					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
+					if (aggregated && problem.aggregatedKnowledge == null) continue;
+
+					precision += Math.pow(sequence.finalProblem().expectedKnowledge - (aggregated ? problem.aggregatedKnowledge : problem.knowledge).mean, 2)
+							/ problems;
 				}
 		}
 
@@ -891,7 +934,10 @@ public class Main
 		applyKnowledgeTracing(null);
 		for (int seq = 0; seq < sequences.size(); ++seq)
 			for (int prob = 0; prob < sequences.get(seq).problems.size(); ++prob)
+			{
 				sequences.get(seq).problems.get(prob).expectedKnowledge = allSequences.get(seq).problems.get(prob).knowledge.mean;
+				sequences.get(seq).problems.get(prob).isTruthCorrect = allSequences.get(seq).problems.get(prob).isCorrect;
+			}
 
 		allSequences.clear();
 		allSequences.addAll(sequences);
@@ -907,13 +953,70 @@ public class Main
 
 	public static void main(String[] args)
 	{
-		try
+		int iterations = 1;
+		double max = -1;
+		String out = null;
+		if (args.length >= 2) try
 		{
-			mainMethod(args.length != 0 ? args[0] : "settings.properties");
+			iterations = Integer.parseInt(args[1]);
+			max = Double.parseDouble(args[2]);
+			out = args[3];
 		} catch (Exception e)
 		{
-			log("Error: " + e.getMessage());
+			System.out.println("Syntax: [settings-path] [<iteration_count> <max> <result-output>]");
 			e.printStackTrace();
+			return;
+		}
+
+		double threshold = -1;
+		double[][] iterationResults = new double[iterations + 1][8];
+
+		for (int i = 0; i < iterations + 1; ++i)
+			try
+			{
+				if (iterations == 1 && i == 1) break;
+				System.out.println("ITERATION " + i + " --------------------------------");
+				if (iterations != 1) threshold = max * i * 1d / iterations;
+				mainMethod(args.length != 0 ? args[0] : "settings.properties", max, threshold);
+
+				int s = 0;
+				for (Sequence sequence : allSequences)
+					for (Problem problem : sequence.problems)
+						if (problem.isCorrect) ++s;
+				iterationResults[i][0] = s * 1. / totalProblems;
+
+				s = 0;
+				for (Sequence sequence : allSequences)
+					for (Problem problem : sequence.problems)
+						if (problem.isTruthCorrect) ++s;
+				iterationResults[i][1] = s * 1. / totalProblems;
+
+				iterationResults[i][2] = computeRMSE(allSequences, false);
+				iterationResults[i][3] = computeInitialRMSE(allSequences);
+
+				iterationResults[i][4] = computePrecision(allSequences, false);
+				iterationResults[i][5] = computeInitialPrecision(allSequences);
+
+				iterationResults[i][6] = computeVariation(allSequences, false);
+				iterationResults[i][7] = computeInitialVariation(allSequences);
+			} catch (Exception e)
+			{
+				log("Error: " + e.getMessage());
+				e.printStackTrace();
+			}
+
+		{
+			String[][] output = new String[iterations + 2][iterationResults[0].length + 1];
+			output[0] = new String[] { "Threshold", "Correct problems", "Correct problems GT", "Knowledge RMSE", "Score RMSE", "Knowledge Precision",
+					"Score Precision", "Knowledge Variation", "Score Variation" };
+			for (int i = 0; i < iterations + 1; ++i)
+			{
+				output[i + 1][0] = Utils.toString(max * i * 1d / iterations);
+				for (int j = 0; j < iterationResults[0].length; ++j)
+					output[i + 1][j + 1] = Utils.toString(iterationResults[i][j]);
+			}
+
+			if (out != null) exportData(new File(out), output);
 		}
 
 		File f = new File("log.txt");
@@ -927,9 +1030,10 @@ public class Main
 		{
 			e.printStackTrace();
 		}
+		log("Done!");
 	}
 
-	private static void mainMethod(String propertiesPath)
+	private static void mainMethod(String propertiesPath, double max, double thresholdin)
 	{
 
 		try
@@ -964,8 +1068,9 @@ public class Main
 		allSequences = new ArrayList<Sequence>();
 		testingSet = new ArrayList<Sequence>();
 		learningSet = new ArrayList<Sequence>();
-		maxScore = settings.getProperty("max_score").equals("null") ? -Double.MAX_VALUE : Double.parseDouble(settings.getProperty("max_score"));
-		if (!settings.getProperty("max_score").equals("null")) maxSet = true;
+		maxScore = max != -1 ? max
+				: settings.getProperty("max_score").equals("null") ? -Double.MAX_VALUE : Double.parseDouble(settings.getProperty("max_score"));
+		if (!settings.getProperty("max_score").equals("null") || max != -1) maxSet = true;
 		minScore = settings.getProperty("min_score").equals("null") ? Double.MAX_VALUE : Double.parseDouble(settings.getProperty("min_score"));
 		if (!settings.getProperty("min_score").equals("null")) minSet = true;
 		if (!createSequences(allSequences, sequences)) return;
@@ -975,7 +1080,7 @@ public class Main
 		// For each exercise indicate if it is correct based on threshold
 		if (!settings.getProperty("correctness").equals("true")) try
 		{
-			threshold = Double.parseDouble(settings.getProperty("correctness"));
+			threshold = thresholdin != -1 ? thresholdin : Double.parseDouble(settings.getProperty("correctness"));
 		} catch (Exception e)
 		{
 			log("Incorrect value for score threshold: " + settings.getProperty("correctness"));
@@ -986,7 +1091,7 @@ public class Main
 				Boolean.parseBoolean(settings.getProperty("center_metrics")));
 
 		// For each exercise indicate if it is correct based on threshold
-		if (!settings.getProperty("correctness").equals("true")) applyThreshold(threshold);
+		if (!settings.getProperty("correctness").equals("true") || thresholdin != -1) applyThreshold(threshold);
 
 		// Allow to split each sequence as two sessions
 		if (!settings.getProperty("split").equals("false")) try
@@ -1032,7 +1137,6 @@ public class Main
 		if (!settings.getProperty("output_user_graphs").equals("null"))
 			exportData(new File(PATH + settings.getProperty("output_user_graphs")), outputUserGraphs());
 
-		log("Done!");
 	}
 
 	/** Function that outputs a String[][] table, each row describing the KT parameters for one specific metric, in the case of aggregated KT

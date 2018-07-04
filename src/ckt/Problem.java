@@ -19,6 +19,8 @@ public class Problem implements Comparable<Problem>
 	boolean isCorrect;
 	/** True if this Problem should be used when computing precision. */
 	boolean isRepresentative = false;
+	/** True if Problem's ground truth is considered correct for the ideal sequence. */
+	boolean isTruthCorrect;
 	/** The Knowledge computed after this Problem. */
 	Gaussian knowledge;
 	/** The knowledge for each individual metric. */
