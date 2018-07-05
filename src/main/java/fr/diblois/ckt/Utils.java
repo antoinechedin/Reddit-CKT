@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Random;
 
-import fr.diblois.ckt.KTParameters.Gaussian;
+import fr.diblois.ckt.Gaussian;
 
 public class Utils
 {

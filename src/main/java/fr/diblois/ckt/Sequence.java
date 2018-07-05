@@ -42,7 +42,7 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** Finds the Knowledge with P(Ln-1) = previous and Ci = score. */
-	private KTParameters.Gaussian computeKnowledge(KTParameters.Gaussian previous, double score, KTParameters parameters)
+	private Gaussian computeKnowledge(Gaussian previous, double score, KTParameters parameters)
 	{
 		double[] draws = new double[DRAWS];
 		for (int i = 0; i < draws.length; ++i)
@@ -61,12 +61,12 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** Finds and sets the Knowledge after sequence n. */
-	private KTParameters.Gaussian computeKnowledge(int n, KTParameters parameters, Metric metric)
+	private Gaussian computeKnowledge(int n, KTParameters parameters, Metric metric)
 	{
-		if (n == -1) return new KTParameters.Gaussian(parameters.startKnowledge, 0);
+		if (n == -1) return new Gaussian(parameters.startKnowledge, 0);
 
-		KTParameters.Gaussian k = this.computeKnowledge(this.computeKnowledge(n - 1, parameters, metric),
-				(metric == null ? this.problems.get(n).score : this.problems.get(n).metricScores.get(metric)), parameters);
+		Gaussian k = this.computeKnowledge(this.computeKnowledge(n - 1, parameters, metric),
+				(metric == null ? this.problems.get(n).karma : this.problems.get(n).metricScores.get(metric)), parameters);
 		if (metric == null) this.problems.get(n).knowledge = k;
 		else this.problems.get(n).metricKnowledge.put(metric, k);
 
@@ -105,8 +105,8 @@ public class Sequence implements Comparable<Sequence>
 			sDenom += this.knowledgeSequence.get(i);
 		}
 
-		this.parameters = new KTParameters(startKnowledge, tDenom == 0 ? 0 : tNum / tDenom, new KTParameters.Gaussian(gDenom == 0 ? 0 : gNum / gDenom),
-				new KTParameters.Gaussian(sDenom == 0 ? 0 : sNum / sDenom));
+		this.parameters = new KTParameters(startKnowledge, tDenom == 0 ? 0 : tNum / tDenom, new Gaussian(gDenom == 0 ? 0 : gNum / gDenom),
+				new Gaussian(sDenom == 0 ? 0 : sNum / sDenom));
 	}
 
 	/** @return The last Problem of this Sequence. */
@@ -169,8 +169,8 @@ public class Sequence implements Comparable<Sequence>
 			score = current * (1 - parameters.slip.next()) + (1 - current) * parameters.guess.next();
 			score *= 0.4 * (Utils.random.nextDouble() - 0.5) + 1;
 			score = Math.min(1, Math.max(0, score));
-			current = this.computeKnowledge(new KTParameters.Gaussian(current, 0), score, parameters).next();
-			this.problems.get(i).score = score;
+			current = this.computeKnowledge(new Gaussian(current, 0), score, parameters).next();
+			this.problems.get(i).karma = score;
 			this.problems.get(i).isCorrect = score > 0.5;
 		}
 	}
@@ -196,7 +196,7 @@ public class Sequence implements Comparable<Sequence>
 	{
 		double similarity = 0;
 		for (int i = 0; i < this.problems.size() && i < sequence.size(); ++i)
-			if ((m == null ? this.problems.get(i).isCorrect : this.problems.get(i).isCorrectTemp) == sequence.get(i)) ++similarity;
+			if ((m == null ? this.problems.get(i).isCorrect : this.problems.get(i).metricCorrectness.get(m)) == sequence.get(i)) ++similarity;
 		return similarity / this.problems.size();
 	}
 

@@ -5,8 +5,8 @@ import java.util.HashMap;
 public class Problem implements Comparable<Problem>
 {
 
-	/** The Knowledge aggregated from all metrics (only used for final Problems). */
-	KTParameters.Gaussian aggregatedKnowledge;
+	/** The Knowledge aggregated from all metrics (only used for representative Problems). */
+	Gaussian aggregatedKnowledge;
 	/** The knowledge expected after this Problem. */
 	double expectedKnowledge;
 	/** The ground truth expected for this Problem. */
@@ -15,22 +15,22 @@ public class Problem implements Comparable<Problem>
 	int index;
 	/** True if Problem is considered correct for the ideal sequence. */
 	boolean isCorrect;
-	/** True if Problem is considered correct for the ideal sequence (temporary variable for metrics). */
-	boolean isCorrectTemp;
 	/** True if this Problem should be used when computing precision. */
 	boolean isRepresentative = false;
 	/** True if Problem's ground truth is considered correct for the ideal sequence. */
 	boolean isTruthCorrect;
+	/** The karma of this problem. */
+	double karma;
 	/** The Knowledge computed after this Problem. */
-	KTParameters.Gaussian knowledge;
+	Gaussian knowledge;
+	/** True if Problem is considered correct for the ideal sequence for each metric. */
+	public final HashMap<Metric, Boolean> metricCorrectness;
 	/** The knowledge for each individual metric. */
-	public final HashMap<Metric, KTParameters.Gaussian> metricKnowledge;
+	public final HashMap<Metric, Gaussian> metricKnowledge;
 	/** The score for each individual metric. */
 	public final HashMap<Metric, Double> metricScores;
 	/** Problem name. */
 	public final String name;
-	/** The focusness score of this problem. */
-	double score;
 
 	public Problem(String name)
 	{
@@ -42,14 +42,15 @@ public class Problem implements Comparable<Problem>
 		this.name = name;
 		this.index = index;
 		this.metricScores = new HashMap<Metric, Double>();
-		this.metricKnowledge = new HashMap<Metric, KTParameters.Gaussian>();
+		this.metricKnowledge = new HashMap<Metric, Gaussian>();
+		this.metricCorrectness = new HashMap<Metric, Boolean>();
 	}
 
 	/** @return A copy of this Problem, with scores as expected. */
 	public Problem asExpected()
 	{
 		Problem copy = new Problem(this.name, this.index);
-		copy.score = this.groundTruth;
+		copy.karma = this.groundTruth;
 		copy.index = this.index;
 		copy.isCorrect = this.isCorrect;
 		return copy;

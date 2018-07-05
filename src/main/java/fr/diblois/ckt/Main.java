@@ -26,8 +26,6 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 
-import fr.diblois.ckt.KTParameters.Gaussian;
-
 public class Main
 {
 	/** Constant to add to the metrics aggregation. */
@@ -234,10 +232,10 @@ public class Main
 		double corrects = 0, starts = 0, total = 0;
 		for (Sequence sequence : allSequences)
 		{
-			if (metric == null ? sequence.problems.get(0).isCorrect : sequence.problems.get(0).isCorrectTemp) ++starts;
+			if (metric == null ? sequence.problems.get(0).isCorrect : sequence.problems.get(0).metricCorrectness.get(metric)) ++starts;
 			for (Problem problem : sequence.problems)
 			{
-				if (metric == null ? problem.isCorrect : problem.isCorrectTemp) ++corrects;
+				if (metric == null ? problem.isCorrect : problem.metricCorrectness.get(metric)) ++corrects;
 				++total;
 			}
 		}
@@ -275,7 +273,7 @@ public class Main
 	{
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
-				problem.isCorrect = problem.score >= threshold;
+				problem.isCorrect = problem.karma >= threshold;
 	}
 
 	/** Uses the metric's <code>threshold</code> to determine the correctness of the problem. */
@@ -283,8 +281,8 @@ public class Main
 	{
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
-				problem.isCorrectTemp = (!metric.thresholdReversed && problem.metricScores.get(metric) >= metric.threshold)
-						|| (metric.thresholdReversed && problem.metricScores.get(metric) < metric.threshold);
+				problem.metricCorrectness.put(metric, (!metric.thresholdReversed && problem.metricScores.get(metric) >= metric.threshold)
+						|| (metric.thresholdReversed && problem.metricScores.get(metric) < metric.threshold));
 	}
 
 	/** 1) Removes empty sequences.<br />
@@ -311,8 +309,8 @@ public class Main
 		{
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
-					if (!minSet && problem.score < minScore) minScore = problem.score;
-					else if (!maxSet && problem.score > maxScore) maxScore = problem.score;
+					if (!minSet && problem.karma < minScore) minScore = problem.karma;
+					else if (!maxSet && problem.karma > maxScore) maxScore = problem.karma;
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
 					if (!minSet && problem.groundTruth < minScore) minScore = problem.groundTruth;
@@ -321,9 +319,9 @@ public class Main
 			for (Sequence sequence : allSequences)
 				for (Problem problem : sequence.problems)
 				{
-					problem.score = (problem.score - minScore) / (maxScore - minScore);
-					if (problem.score > 1) problem.score = 1;
-					if (problem.score < 0) problem.score = 0;
+					problem.karma = (problem.karma - minScore) / (maxScore - minScore);
+					if (problem.karma > 1) problem.karma = 1;
+					if (problem.karma < 0) problem.karma = 0;
 
 					problem.groundTruth = (problem.groundTruth - minScore) / (maxScore - minScore);
 					if (problem.groundTruth > 1) problem.groundTruth = 1;
@@ -416,8 +414,8 @@ public class Main
 				{
 					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
 
-					if (threshold == -1) precision += Math.pow(sequence.finalProblem().groundTruth - problem.score, 2) / problems;
-					else precision += Math.pow(sequence.finalProblem().groundTruth - (problem.score >= threshold ? 1 : 0), 2) / problems;
+					if (threshold == -1) precision += Math.pow(sequence.finalProblem().groundTruth - problem.karma, 2) / problems;
+					else precision += Math.pow(sequence.finalProblem().groundTruth - (problem.karma >= threshold ? 1 : 0), 2) / problems;
 				}
 		}
 
@@ -437,7 +435,7 @@ public class Main
 				{
 					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
 
-					precision += Math.pow(sequence.finalProblem().groundTruth - problem.score, 2) / problems;
+					precision += Math.pow(sequence.finalProblem().groundTruth - problem.karma, 2) / problems;
 				}
 		}
 
@@ -458,7 +456,7 @@ public class Main
 				if (problem.isRepresentative)
 				{
 					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
-					variation += sequence.finalProblem().score / problems;
+					variation += sequence.finalProblem().karma / problems;
 				}
 		}
 
@@ -605,10 +603,10 @@ public class Main
 			{
 				if (file == null)
 				{
-					problem.score = aggregationBase;
+					problem.karma = aggregationBase;
 					// if (allSequences.indexOf(sequence) <= 10 && d == 0) log();
 					for (Metric metric : metrics)
-						problem.score += metric.weight * problem.metricScores.get(metric);
+						problem.karma += metric.weight * problem.metricScores.get(metric);
 
 				} else try
 				{
@@ -619,7 +617,7 @@ public class Main
 					// Output: aggregated score as a double.
 					script.put("metrics", scores);
 					script.eval(new BufferedReader(new FileReader(file)));
-					problem.score = (double) script.get("aggregated");
+					problem.karma = (double) script.get("aggregated");
 				} catch (FileNotFoundException e)
 				{
 					log("Couldn't find aggregation script: " + settings.getProperty("aggregation_script"));
@@ -808,7 +806,7 @@ public class Main
 							: new Problem(record.get(problemID), Double.valueOf(record.get(order)).intValue());
 					p.groundTruth = Utils.parseDouble(record.get(expectedKnowledge));
 					p.isCorrect = correctness == -1 ? false : record.get(correctness).equals("1");
-					p.score = score == -1 ? 0 : Utils.parseDouble(record.get(score));
+					p.karma = score == -1 ? 0 : Utils.parseDouble(record.get(score));
 
 					for (Metric metric : metrics)
 						p.metricScores.put(metric, Utils.parseDouble(record.get(metricIndex.get(metric))));
@@ -1085,7 +1083,6 @@ public class Main
 
 		// For each exercise indicate if it is correct based on threshold
 		if (!settings.getProperty("correctness").equals("true") || thresholdin != -1) applyThreshold(threshold);
-
 
 		// size of test train sets
 		try
@@ -1409,7 +1406,7 @@ public class Main
 			int p = 0;
 			for (Problem problem : sequence.problems)
 			{
-				score[++p] = Utils.toString(problem.score);
+				score[++p] = Utils.toString(problem.karma);
 				expected[p] = Utils.toString(problem.groundTruth);
 				kt[p] = Utils.toString(problem.knowledge.mean);
 				ktexpected[p] = Utils.toString(problem.expectedKnowledge);

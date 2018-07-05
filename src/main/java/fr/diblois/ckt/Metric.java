@@ -1,7 +1,5 @@
 package fr.diblois.ckt;
 
-import fr.diblois.ckt.KTParameters.Gaussian;
-
 public class Metric implements Comparable<Metric>
 {
 
