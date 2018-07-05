@@ -13,15 +13,15 @@ public class Sequence implements Comparable<Sequence>
 	static final int DRAWS = 100;
 
 	/** Best similarity found for Knowledge sequences. */
-	double bestSimilarity;
+	public double bestSimilarity;
 	/** The final Knowledge Sequence for this Sequence. */
-	ArrayList<Double> knowledgeSequence;
+	public ArrayList<Double> knowledgeSequence;
 	/** Sequence name. */
 	public final String name;
 	/** Probabilities for this Sequence. Some can be NaN if the sequence is full of 1 or full of 0. */
-	KTParameters parameters;
+	public KTParameters parameters;
 	/** The list of Problems in this Sequence. */
-	ArrayList<Problem> problems;
+	public ArrayList<Problem> problems;
 
 	public Sequence(String name)
 	{
