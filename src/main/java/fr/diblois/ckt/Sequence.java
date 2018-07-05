@@ -81,7 +81,7 @@ public class Sequence implements Comparable<Sequence>
 		this.computeKnowledge(this.problems.size() - 1, parameters, metric);
 	}
 
-	/** Determines P(T), P(G), P(S) */
+	/** Determines P(L0), P(T), P(G), P(S) */
 	public void computeProbabilities(double startKnowledge)
 	{
 		double tNum = 0, tDenom = 0; // Numerator and denominator
@@ -115,9 +115,7 @@ public class Sequence implements Comparable<Sequence>
 		return this.problems.get(this.problems.size() - 1);
 	}
 
-	/** Finds the best Knowledge Sequence for this Sequence.
-	 * 
-	 * @param metric */
+	/** Finds the best Knowledge Sequence for this Sequence. */
 	void findKnowledgeSequence(Metric m)
 	{
 		/* this.idealKnowledge = new ArrayList<Boolean>(); for (Problem problem : this.problems) this.idealKnowledge.add(problem.isFocused); */
