@@ -8,5 +8,12 @@
     <artifactId>ckt</artifactId>
     <version>1.0</version>
 
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.5</version>
+		</dependency>
+	</dependencies>
     
 </project>
