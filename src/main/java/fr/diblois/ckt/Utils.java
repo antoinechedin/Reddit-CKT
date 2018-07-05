@@ -1,4 +1,4 @@
-package ckt;
+package fr.diblois.ckt;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Random;
 
-import ckt.KTParameters.Gaussian;
+import fr.diblois.ckt.KTParameters.Gaussian;
 
 public class Utils
 {

@@ -1,4 +1,4 @@
-package ckt;
+package fr.diblois.ckt;
 
 /** The set of Parameters used in Knowledge Tracing. */
 public class KTParameters

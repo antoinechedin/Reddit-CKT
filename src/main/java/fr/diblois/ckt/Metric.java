@@ -1,6 +1,6 @@
-package ckt;
+package fr.diblois.ckt;
 
-import ckt.KTParameters.Gaussian;
+import fr.diblois.ckt.KTParameters.Gaussian;
 
 public class Metric implements Comparable<Metric>
 {

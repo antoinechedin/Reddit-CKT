@@ -1,4 +1,4 @@
-package ckt;
+package fr.diblois.ckt;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -26,20 +26,16 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 
-import ckt.KTParameters.Gaussian;
+import fr.diblois.ckt.KTParameters.Gaussian;
 
 public class Main
 {
-	/** The Precision for aggregated metrics. */
-	static double aggregatedPrecision;
 	/** Constant to add to the metrics aggregation. */
 	static double aggregationBase;
 	/** Stores all the Sequences used for cross validation. */
 	static ArrayList<Sequence> allSequences;
 	/** The parameters for main Knowledge. */
 	static KTParameters[] expectedParameters;
-	/** When iterating over different thresholds, the value of the current one. -1 if no iteration. */
-	static int iterationThreshold = -1;
 	/** Stores the Sequences used as learning set. */
 	static ArrayList<Sequence> learningSet;
 	static ArrayList<String> log = new ArrayList<String>();
@@ -1090,16 +1086,6 @@ public class Main
 		// For each exercise indicate if it is correct based on threshold
 		if (!settings.getProperty("correctness").equals("true") || thresholdin != -1) applyThreshold(threshold);
 
-		// Allow to split each sequence as two sessions
-		if (!settings.getProperty("split").equals("false")) try
-		{
-			log("Splitting sequences...");
-			ExplorationSplitter.splitSequences(Integer.parseInt(settings.getProperty("split")));
-		} catch (Exception e)
-		{
-			log("Incorrect value for max noise: " + settings.getProperty("split"));
-			return;
-		}
 
 		// size of test train sets
 		try

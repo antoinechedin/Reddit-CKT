@@ -1,14 +1,12 @@
-package ckt;
+package fr.diblois.ckt;
 
 import java.util.HashMap;
-
-import ckt.KTParameters.Gaussian;
 
 public class Problem implements Comparable<Problem>
 {
 
 	/** The Knowledge aggregated from all metrics (only used for final Problems). */
-	Gaussian aggregatedKnowledge;
+	KTParameters.Gaussian aggregatedKnowledge;
 	/** The knowledge expected after this Problem. */
 	double expectedKnowledge;
 	/** The ground truth expected for this Problem. */
@@ -24,9 +22,9 @@ public class Problem implements Comparable<Problem>
 	/** True if Problem's ground truth is considered correct for the ideal sequence. */
 	boolean isTruthCorrect;
 	/** The Knowledge computed after this Problem. */
-	Gaussian knowledge;
+	KTParameters.Gaussian knowledge;
 	/** The knowledge for each individual metric. */
-	public final HashMap<Metric, Gaussian> metricKnowledge;
+	public final HashMap<Metric, KTParameters.Gaussian> metricKnowledge;
 	/** The score for each individual metric. */
 	public final HashMap<Metric, Double> metricScores;
 	/** Problem name. */
@@ -44,7 +42,7 @@ public class Problem implements Comparable<Problem>
 		this.name = name;
 		this.index = index;
 		this.metricScores = new HashMap<Metric, Double>();
-		this.metricKnowledge = new HashMap<Metric, Gaussian>();
+		this.metricKnowledge = new HashMap<Metric, KTParameters.Gaussian>();
 	}
 
 	/** @return A copy of this Problem, with scores as expected. */

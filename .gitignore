@@ -114,8 +114,8 @@ local.properties
 .scala_dependencies
 .worksheet
 
-###
+### Datafiles
 *.csv
 *.txt
 *jar
-.~lock.results.csv#
+.~lock.results.csv
