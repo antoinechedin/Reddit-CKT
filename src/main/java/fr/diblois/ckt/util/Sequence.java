@@ -1,7 +1,10 @@
-package fr.diblois.ckt;
+package fr.diblois.ckt.util;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+
+import fr.diblois.ckt.data.Gaussian;
+import fr.diblois.ckt.data.KTParameters;
 
 /** Represents a single Sequence. */
 public class Sequence implements Comparable<Sequence>

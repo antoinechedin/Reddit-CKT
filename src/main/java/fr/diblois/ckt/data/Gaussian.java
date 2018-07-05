@@ -1,4 +1,6 @@
-package fr.diblois.ckt;
+package fr.diblois.ckt.data;
+
+import fr.diblois.ckt.util.Utils;
 
 /** Represents a Gaussian distribution by its mean and variation. */
 public class Gaussian

@@ -1,4 +1,4 @@
-package fr.diblois.ckt;
+package fr.diblois.ckt.old;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -26,6 +26,14 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 
+import fr.diblois.ckt.data.Gaussian;
+import fr.diblois.ckt.data.KTParameters;
+import fr.diblois.ckt.util.Metric;
+import fr.diblois.ckt.util.Problem;
+import fr.diblois.ckt.util.Sequence;
+import fr.diblois.ckt.util.Utils;
+
+@Deprecated
 public class Main
 {
 	/** Constant to add to the metrics aggregation. */

@@ -1,6 +1,8 @@
-package fr.diblois.ckt;
+package fr.diblois.ckt.util;
 
 import java.util.HashMap;
+
+import fr.diblois.ckt.data.Gaussian;
 
 public class Problem implements Comparable<Problem>
 {
