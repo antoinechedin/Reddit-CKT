@@ -233,15 +233,15 @@ public class Main
 		if (metric == null) log("Executing Knowledge Tracing...");
 		else log("Executing Knowledge Tracing on metric \"" + metric.name + "\"...");
 		if (metric != null) applyThreshold(metric);
-		findKnowledgeSequences();
+		findKnowledgeSequences(metric);
 
 		double corrects = 0, starts = 0, total = 0;
 		for (Sequence sequence : allSequences)
 		{
-			if (sequence.problems.get(0).isCorrect) ++starts;
+			if (metric == null ? sequence.problems.get(0).isCorrect : sequence.problems.get(0).isCorrectTemp) ++starts;
 			for (Problem problem : sequence.problems)
 			{
-				if (problem.isCorrect) ++corrects;
+				if (metric == null ? problem.isCorrect : problem.isCorrectTemp) ++corrects;
 				++total;
 			}
 		}
@@ -262,13 +262,13 @@ public class Main
 				if (j < i * testingSize || j >= (i + 1) * testingSize) learningSet.add(allSequences.get(j));
 				else testingSet.add(allSequences.get(j));
 
-			params[i] = computeParameters();
+			params[i] = computeParameters(metric);
 			computeKnowledge(params[i], metric);
 		}
 		if (metric == null) computeStats(params);
 		else
 		{
-			// add-on here to track local KT Parameters for each metric in the context of aggregted KT
+			// add-on here to track local KT Parameters for each metric in the context of aggregated KT
 			if (metricsKTParams == null) metricsKTParams = new HashMap<Metric, KTParameters[]>();
 			metricsKTParams.put(metric, params);
 		}
@@ -277,7 +277,6 @@ public class Main
 	/** Uses the input <code>threshold</code> to determine the correctness of the problem. */
 	private static void applyThreshold(double threshold)
 	{
-		// threshold = Math.log(threshold);// TODO comment this if not necessary. Used for reddit
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
 				problem.isCorrect = problem.score >= threshold;
@@ -288,7 +287,7 @@ public class Main
 	{
 		for (Sequence sequence : allSequences)
 			for (Problem problem : sequence.problems)
-				problem.isCorrect = (!metric.thresholdReversed && problem.metricScores.get(metric) >= metric.threshold)
+				problem.isCorrectTemp = (!metric.thresholdReversed && problem.metricScores.get(metric) >= metric.threshold)
 						|| (metric.thresholdReversed && problem.metricScores.get(metric) < metric.threshold);
 	}
 
@@ -361,7 +360,7 @@ public class Main
 		}
 	}
 
-	/** @return The average L(n) value of the last problem in each of the input sequences based on the real helfulness score not the ones outputed by one of our model. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
+	/** @return The average L(n) value of the last problem in each of the input sequences based on the real helpfulness score not the ones outputed by one of our model. Warning: each P(Ln) is a Gaussian, this function only returns the average of Gaussian means */
 	private static double computeAverageExpectedLearning(ArrayList<Sequence> sequences)
 	{
 		double sumLearning = 0; // contains the sum of all P(Ln) for the last problem of the input sequences
@@ -477,8 +476,10 @@ public class Main
 			sequence.computeKnowledge(parameters, metric);
 	}
 
-	/** Determines P(L0), P(T), P(G), P(S). Analyzes the {@link Main#learningSet learning set} and returns the parameters. */
-	private static KTParameters computeParameters()
+	/** Determines P(L0), P(T), P(G), P(S). Analyzes the {@link Main#learningSet learning set} and returns the parameters.
+	 * 
+	 * @param metric */
+	private static KTParameters computeParameters(Metric metric)
 	{
 		double kStart = 0, mTransition = 0, mGuess = 0, mSlip = 0;
 
@@ -612,8 +613,6 @@ public class Main
 					// if (allSequences.indexOf(sequence) <= 10 && d == 0) log();
 					for (Metric metric : metrics)
 						problem.score += metric.weight * problem.metricScores.get(metric);
-
-					// problem.score = problem.score <= 0 ? 0 : Math.log(problem.score);// TODO comment this if not necessary. Used for reddit
 
 				} else try
 				{
@@ -815,10 +814,6 @@ public class Main
 					p.isCorrect = correctness == -1 ? false : record.get(correctness).equals("1");
 					p.score = score == -1 ? 0 : Utils.parseDouble(record.get(score));
 
-					// TODO comment this if not necessary. Used for reddit
-					// p.score = p.score <= 0 ? 0 : Math.log(p.score);
-					// p.groundTruth = p.groundTruth <= 0 ? 0 : Math.log(p.groundTruth);
-
 					for (Metric metric : metrics)
 						p.metricScores.put(metric, Utils.parseDouble(record.get(metricIndex.get(metric))));
 					sequence.problems.add(p);
@@ -880,11 +875,13 @@ public class Main
 		exportData(output, list);
 	}
 
-	/** Determines the Knowledge Sequences for each Sequence. */
-	private static void findKnowledgeSequences()
+	/** Determines the Knowledge Sequences for each Sequence.
+	 * 
+	 * @param metric */
+	private static void findKnowledgeSequences(Metric metric)
 	{
 		for (Sequence sequence : allSequences)
-			sequence.findKnowledgeSequence();
+			sequence.findKnowledgeSequence(metric);
 	}
 
 	/** Determines which Problems should be used to compute Precision. */

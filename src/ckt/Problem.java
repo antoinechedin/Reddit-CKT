@@ -17,6 +17,8 @@ public class Problem implements Comparable<Problem>
 	int index;
 	/** True if Problem is considered correct for the ideal sequence. */
 	boolean isCorrect;
+	/** True if Problem is considered correct for the ideal sequence (temporary variable for metrics). */
+	boolean isCorrectTemp;
 	/** True if this Problem should be used when computing precision. */
 	boolean isRepresentative = false;
 	/** True if Problem's ground truth is considered correct for the ideal sequence. */

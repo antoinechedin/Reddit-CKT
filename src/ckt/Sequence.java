@@ -117,8 +117,10 @@ public class Sequence implements Comparable<Sequence>
 		return this.problems.get(this.problems.size() - 1);
 	}
 
-	/** Finds the best Knowledge Sequence for this Sequence. */
-	void findKnowledgeSequence()
+	/** Finds the best Knowledge Sequence for this Sequence.
+	 * 
+	 * @param metric */
+	void findKnowledgeSequence(Metric m)
 	{
 		/* this.idealKnowledge = new ArrayList<Boolean>(); for (Problem problem : this.problems) this.idealKnowledge.add(problem.isFocused); */
 
@@ -128,7 +130,7 @@ public class Sequence implements Comparable<Sequence>
 			public int compare(ArrayList<Boolean> o1, ArrayList<Boolean> o2)
 			{
 				// Revert as we want the highest first
-				return -similarity(o1).compareTo(similarity(o2));
+				return -similarity(o1, m).compareTo(similarity(o2, m));
 			}
 		});
 
@@ -138,9 +140,9 @@ public class Sequence implements Comparable<Sequence>
 		{
 			if (this.bestSimilarity == -1)
 			{
-				this.bestSimilarity = this.similarity(sequences.get(i));
+				this.bestSimilarity = this.similarity(sequences.get(i), m);
 				++total;
-			} else if (this.similarity(sequences.get(i)) == this.bestSimilarity) ++total;
+			} else if (this.similarity(sequences.get(i), m) == this.bestSimilarity) ++total;
 			else break;
 		}
 
@@ -192,11 +194,11 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** @return the similarity of the input <code>sequence</code> to this Sequence. */
-	Double similarity(ArrayList<Boolean> sequence)
+	Double similarity(ArrayList<Boolean> sequence, Metric m)
 	{
 		double similarity = 0;
 		for (int i = 0; i < this.problems.size() && i < sequence.size(); ++i)
-			if (this.problems.get(i).isCorrect == sequence.get(i)) ++similarity;
+			if ((m == null ? this.problems.get(i).isCorrect : this.problems.get(i).isCorrectTemp) == sequence.get(i)) ++similarity;
 		return similarity / this.problems.size();
 	}
 
