@@ -6,15 +6,13 @@ from datetime import datetime
 
 import pandas as pd
 import tensorflow as tf
-from tensorflow.python.client import device_lib
 from sklearn import metrics
 import matplotlib.pyplot as plt
 
 # FILES VAR
 
 # Features names
-DATASET_PATH = "datasets/dataset_with_feature_normalized.csv"
-MODEL_DIR_PATH = "model_dir/"
+MODEL_DIR_PATH = "../../../model_dir/"
 FEATURES_NAME_LIST = [
     "selftextLength", "titleLength",
     "selftextARI", "titleARI",
@@ -24,25 +22,24 @@ FEATURES_NAME_LIST = [
     "selftextFK", "titleFK",
     "selftextCLI", "titleCLI",
     "polaritySelftext", "polarityTitle",
-    "polarity",
-    "deviation"
-]
+    "polarity"
+]  # Deviation is not used, it has no meaning here
 LABEL_NAME = "score"
 
 # Hyper parameters
 INPUT_RECORDS_NUM = None
-BATCH_SIZE = 20
+BATCH_SIZE = 100
 HIDDEN_UNITS = [25, 15, 5]
-LEARNING_RATE = 0.03
+LEARNING_RATE = 0.3
 PERIOD = 10
-STEPS = 1000
+STEPS = 10000
 
 FLAGS = None
 
 
-def train_input_fn(features, labels, batch_size):
+def train_input_fn(features, labels, shuffle_buffer_size, batch_size):
     dataset = tf.data.Dataset.from_tensor_slices((dict(features), labels))
-    return dataset.shuffle(INPUT_RECORDS_NUM).repeat().batch(batch_size).make_one_shot_iterator().get_next()
+    return dataset.shuffle(shuffle_buffer_size).repeat().batch(batch_size).make_one_shot_iterator().get_next()
 
 
 def eval_input_fn(features, labels=None, batch_size=None):
@@ -80,26 +77,28 @@ def evaluate_classifier(classifier, train_features, train_labels, train_rmse_lis
     train_rmse_list.append(train_rmse)
     validation_rmse_list.append(validation_rmse)
 
+    return validation_predictions
+
 
 def init_datasets(input_files_list, fold_index):
-    # Load train dataset
-    train_dataframe = pd.read_csv(filepath_or_buffer=input_files_list[fold_index], delimiter=",", header=0,
-                                  index_col="id")
+    # Load validation dataset
+    validation_dataframe = pd.read_csv(filepath_or_buffer=input_files_list[fold_index], delimiter=",", header=0,
+                                       index_col="id")
 
-    # Merge and load validation datasets
-    validation_dataframe = None
+    # Merge and load train datasets
+    train_dataframe = None
     is_first = True
     # For each dataset in the datasets dir
     for i, dataset_str in enumerate(input_files_list):
         if i is not fold_index:
             if is_first:
                 # If first dataset found, just load it
-                validation_dataframe = pd.read_csv(filepath_or_buffer=dataset_str, delimiter=",", header=0,
-                                                   index_col="id")
+                train_dataframe = pd.read_csv(filepath_or_buffer=dataset_str, delimiter=",", header=0,
+                                              index_col="id")
                 is_first = False
             else:
                 # Else merge the dataset found
-                validation_dataframe = validation_dataframe.append(
+                train_dataframe = train_dataframe.append(
                     pd.read_csv(filepath_or_buffer=dataset_str, delimiter=",", header=0, index_col="id")
                 )
 
@@ -108,7 +107,8 @@ def init_datasets(input_files_list, fold_index):
 
 
 def cross_val_predict(input_files_list, output_file, folds):
-    predict_label_list = []
+    predict_label_dataframe = None
+
     steps_by_period = int(STEPS / PERIOD)
 
     # Cross validation
@@ -118,9 +118,13 @@ def cross_val_predict(input_files_list, output_file, folds):
                                                                                              fold_index=fold_index)
         INPUT_RECORDS_NUM = train_features.shape[0]
 
-        # print("{}: Training records: {}".format(datetime.now(), train_features.shape[0]))
-        # print("{}: Validation records: {}".format(datetime.now(), validation_features.shape[0]))
-        # print("{}: Features number: {}".format(datetime.now(), len(FEATURES_NAME_LIST)))
+        print("\n{}: Training records: {}".format(datetime.now(), train_features.shape[0]))
+        print("{}: Validation records: {}".format(datetime.now(), validation_features.shape[0]))
+        print("{}: Features number: {}".format(datetime.now(), train_features.shape[1]))
+        # Remove previous classifier model directory
+        if os.path.isdir(MODEL_DIR_PATH):
+            print("{}: Remove model_directory: {}".format(datetime.now(), MODEL_DIR_PATH))
+            shutil.rmtree(MODEL_DIR_PATH, ignore_errors=True)
 
         # Init classifier
         classifier = tf.estimator.DNNRegressor(
@@ -130,16 +134,13 @@ def cross_val_predict(input_files_list, output_file, folds):
             label_dimension=1,
             optimizer=tf.train.AdagradOptimizer(learning_rate=LEARNING_RATE)
         )
-        # Remove previous classifier model directory
-        print("{}: Remove model_directory: {}".format(datetime.now(), MODEL_DIR_PATH))
-        shutil.rmtree(MODEL_DIR_PATH)
 
-        print("\n{}: BEGIN TRAINING...".format(datetime.now()))
+        print("{}: BEGIN TRAINING FOLD {}/{}".format(datetime.now(), fold_index + 1, folds))
         train_rmse_list = []
         validation_rmse_list = []
         # train on step to initialise
         classifier.train(
-            input_fn=lambda: train_input_fn(train_features, train_labels, BATCH_SIZE),
+            input_fn=lambda: train_input_fn(train_features, train_labels, train_features.shape[0], BATCH_SIZE),
             steps=1
         )
         evaluate_classifier(classifier, train_features, train_labels, train_rmse_list, validation_features,
@@ -148,21 +149,31 @@ def cross_val_predict(input_files_list, output_file, folds):
             datetime.now(), 0, PERIOD, train_rmse_list[-1], validation_rmse_list[-1]
         ))
 
+        validation_predict_list = None
         for i in range(PERIOD):
             classifier.train(
-                input_fn=lambda: train_input_fn(train_features, train_labels, BATCH_SIZE),
+                input_fn=lambda: train_input_fn(train_features, train_labels, train_features.shape[0], BATCH_SIZE),
                 steps=steps_by_period
             )
 
-            evaluate_classifier(classifier, train_features, train_labels, train_rmse_list, validation_features,
-                                validation_labels, validation_rmse_list)
+            validation_predict_list = evaluate_classifier(classifier, train_features, train_labels, train_rmse_list,
+                                                          validation_features, validation_labels, validation_rmse_list)
             print("{}: Period {}/{}: train_rmse={}, validation_rmse={}".format(
-                datetime.now(), i, PERIOD, train_rmse_list[-1], validation_rmse_list[-1]
+                datetime.now(), i + 1, PERIOD, train_rmse_list[-1], validation_rmse_list[-1]
             ))
+
+        # Get final predictions
+        # validation_labels["karma_predict"] = validation_predict_list
+
+        if predict_label_dataframe is None:
+            predict_label_dataframe = pd.Series(validation_predict_list, index=validation_labels.index).to_frame(
+                name="karma_predicted")
+        else:
+            predict_label_dataframe = predict_label_dataframe.append(
+                pd.Series(validation_predict_list, index=validation_labels.index).to_frame(name="karma_predicted"), verify_integrity=True)
 
         fig, ax = plt.subplots()
         ax.set(xlabel="period", ylabel="rmse", title="rmse vs. Periods")
-        ax.set(ylim=[0, 0.5])
         ax.plot(train_rmse_list, label="training")
         ax.plot(validation_rmse_list, label="validation")
         ax.grid()
@@ -170,8 +181,7 @@ def cross_val_predict(input_files_list, output_file, folds):
 
         print("{}: TRAINING FINISHED".format(datetime.now()))
 
-        plt.show()
-
+        # plt.show()
 
 if __name__ == "__main__":
     # Parse arguments
