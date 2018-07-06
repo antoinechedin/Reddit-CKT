@@ -70,17 +70,8 @@ public class Sequence implements Comparable<Sequence>
 
 		Problem p = this.problems.get(n);
 		Gaussian k = this.computeKnowledge(this.computeKnowledge(n - 1, parameters, onGroundTruth), onGroundTruth ? p.karma : p.prediction, parameters);
-		if (onGroundTruth)
-		{
-			p.expectedKnowledge = k;
-			p.avg_knowledge_exp = (p.avg_knowledge_exp * p.avg_knowledge_exp_count + k.mean) / (p.avg_knowledge_exp_count + 1);
-			++p.avg_knowledge_exp_count;
-		} else
-		{
-			p.knowledge = k;
-			p.avg_knowledge = (p.avg_knowledge * p.avg_knowledge_count + k.mean) / (p.avg_knowledge_count + 1);
-			++p.avg_knowledge_count;
-		}
+		if (onGroundTruth) p.expectedKnowledge = k;
+		else p.knowledge = k;
 
 		/* if (Main.allSequences.indexOf(this) == 0) System.out.println((metric == null ? "general" : metric.name) + ", " + n + " : " + p.knowledge); */
 		return onGroundTruth ? p.expectedKnowledge : p.knowledge;

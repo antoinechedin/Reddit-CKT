@@ -217,8 +217,8 @@ public class RedditCKT
 			{
 				karma.add(Json.value(problem.karma));
 				karma_pred.add(Json.value(problem.prediction));
-				kt.add(Json.value(problem.avg_knowledge_exp));
-				kt_pred.add(Json.value(problem.avg_knowledge));
+				kt.add(Json.value(problem.expectedKnowledge.mean));
+				kt_pred.add(Json.value(problem.knowledge.mean));
 			}
 
 			seq.add("karma", karma);
@@ -379,10 +379,6 @@ public class RedditCKT
 	{
 		applyThreshold(threshold);
 
-		for (Sequence s : dataset)
-			for (Problem p : s.problems)
-				p.avg_knowledge = p.avg_knowledge_exp = p.avg_knowledge_count = p.avg_knowledge_exp_count = 0;
-
 		ArrayList<Sequence> trainset = new ArrayList<>(), testset = new ArrayList<>();
 		KTFIResults[] validation = new KTFIResults[folds];
 		for (int fold = 0; fold < folds; ++fold)
@@ -390,9 +386,9 @@ public class RedditCKT
 			trainset.clear();
 			testset.clear();
 
-			trainset.addAll(subsets.get(fold));
-			testset.addAll(dataset);
-			testset.removeAll(trainset);
+			testset.addAll(subsets.get(fold));
+			trainset.addAll(dataset);
+			trainset.removeAll(trainset);
 
 			validation[fold] = knowledgeTracing(fold, threshold, trainset, testset);
 		}

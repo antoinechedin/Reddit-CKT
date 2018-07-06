@@ -15,10 +15,6 @@ public class Problem implements Comparable<Problem>
 		return p;
 	}
 
-	public double avg_knowledge;
-	public int avg_knowledge_count;
-	public double avg_knowledge_exp;
-	public int avg_knowledge_exp_count;
 	/** The Knowledge aggregated from all metrics (only used for representative Problems). */
 	// public Gaussian aggregatedKnowledge;
 	/** The knowledge expected after this Problem. */
