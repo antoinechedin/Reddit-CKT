@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Scanner;
 
 import com.eclipsesource.json.Json;
 import com.eclipsesource.json.JsonArray;
@@ -137,35 +138,20 @@ public class RedditCKT
 	private static void executeDNNR()
 	{
 		Process p = null;
-		String command = "python src/main/python/dnnr.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
+		String command = "python src/main/python/DNNR.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
 		try
 		{
 			p = Runtime.getRuntime().exec(command);
-		} catch (final IOException e)
-		{
-			e.printStackTrace();
-		}
 
-		// Wait to get exit value
-		try
+			String line;
+			Scanner sc = new Scanner(p.getInputStream());
+			while (!(line = sc.nextLine()).contains("DNNR Finished"))
+				System.out.println("[PYTHON]: " + line);
+			System.out.println("Python script finished.");
+			sc.close();
+		} catch (final Exception e)
 		{
-			final int exitValue = p.waitFor();
-			if (exitValue == 0) System.out.println("Successfully executed the command: " + command);
-			else
-			{
-				System.out.println("Failed to execute the following command: " + command + " due to the following error(s):");
-				try (final BufferedReader b = new BufferedReader(new InputStreamReader(p.getErrorStream())))
-				{
-					String line;
-					if ((line = b.readLine()) != null) System.out.println(line);
-				} catch (final IOException e)
-				{
-					e.printStackTrace();
-				}
-				System.out.println("--");
-			}
-		} catch (InterruptedException e)
-		{
+			log("Error while executing python script!");
 			e.printStackTrace();
 		}
 	}
