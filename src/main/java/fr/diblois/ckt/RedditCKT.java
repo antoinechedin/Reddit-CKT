@@ -28,6 +28,7 @@ public class RedditCKT
 {
 
 	public static KTParametersStats avg_parameters, stdev_parameters;
+	public static String column_order, column_problem, column_sequence, column_score;
 	public static final ArrayList<Sequence> dataset = new ArrayList<>();
 	public static String dataset_directory, results_directory;
 	public static int folds, kttis;
@@ -37,7 +38,6 @@ public class RedditCKT
 	public static double minValue, maxValue;
 	public static final Properties settings = new Properties();
 	public static final ArrayList<ArrayList<Sequence>> subsets = new ArrayList<>();
-	// public static final ArrayList<Sequence> testset = new ArrayList<>(), trainset = new ArrayList<>();
 
 	/** Uses the input <code>threshold</code> to determine the correctness of the problem. */
 	private static void applyThreshold(double threshold)
@@ -149,7 +149,6 @@ public class RedditCKT
 		// Wait to get exit value
 		try
 		{
-			p.waitFor();
 			final int exitValue = p.waitFor();
 			if (exitValue == 0) System.out.println("Successfully executed the command: " + command);
 			else
@@ -163,6 +162,7 @@ public class RedditCKT
 				{
 					e.printStackTrace();
 				}
+				System.out.println("--");
 			}
 		} catch (InterruptedException e)
 		{

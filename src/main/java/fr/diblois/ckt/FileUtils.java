@@ -90,6 +90,7 @@ public class FileUtils
 						problems.get(p.sequence).add(p);
 					} catch (Exception e)
 					{
+						e.printStackTrace();
 						RedditCKT.log("Error while initializing problem: " + e.getMessage());
 						RedditCKT.log("Problem: " + record.toString());
 					}
@@ -134,7 +135,7 @@ public class FileUtils
 			{
 				String id = record.get(0);
 				Problem p = RedditCKT.getProblem(id);
-				p.prediction = Double.parseDouble(record.get(1));
+				p.prediction = Double.valueOf(record.get(1));
 			}
 			parser.close();
 		} catch (FileNotFoundException e)
@@ -161,6 +162,10 @@ public class FileUtils
 
 		RedditCKT.dataset_directory = RedditCKT.settings.getProperty("dataset_directory");
 		RedditCKT.results_directory = RedditCKT.settings.getProperty("results_directory");
+		RedditCKT.column_order = RedditCKT.settings.getProperty("column_order");
+		RedditCKT.column_problem = RedditCKT.settings.getProperty("column_problem");
+		RedditCKT.column_score = RedditCKT.settings.getProperty("column_score");
+		RedditCKT.column_sequence = RedditCKT.settings.getProperty("column_sequence");
 
 		try
 		{
