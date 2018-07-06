@@ -1,15 +1,12 @@
 package fr.diblois.ckt;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Random;
-import java.util.Scanner;
 
 import com.eclipsesource.json.Json;
 import com.eclipsesource.json.JsonArray;
@@ -22,6 +19,7 @@ import fr.diblois.ckt.data.KTParameters;
 import fr.diblois.ckt.data.KTParametersStats;
 import fr.diblois.ckt.data.KTTIResults;
 import fr.diblois.ckt.util.Problem;
+import fr.diblois.ckt.util.PythonLogger;
 import fr.diblois.ckt.util.Sequence;
 import fr.diblois.ckt.util.Utils;
 
@@ -37,6 +35,8 @@ public class RedditCKT
 	private static final ArrayList<String> log = new ArrayList<>();
 	public static boolean minFixed, maxFixed;
 	public static double minValue, maxValue;
+	public static Process process;
+	public static boolean processFinished = false;
 	public static final Properties settings = new Properties();
 	public static final ArrayList<ArrayList<Sequence>> subsets = new ArrayList<>();
 
@@ -138,18 +138,15 @@ public class RedditCKT
 	private static void executeDNNR()
 	{
 		RedditCKT.log("Executing DNNR.py.");
-		Process p = null;
-		String command = "python src/main/python/DNNR.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
+		String command = "python src/main/python/dnnr.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
 		try
 		{
-			p = Runtime.getRuntime().exec(command);
+			new Thread(new PythonLogger()).start();
+			process = Runtime.getRuntime().exec(command);
 
-			String line;
-			Scanner sc = new Scanner(p.getInputStream());
-			while (!(line = sc.nextLine()).contains("DNNR Finished"))
-				System.out.println("[PYTHON]: " + line);
+			while (!processFinished)
+				Thread.sleep(100);
 			System.out.println("Python script finished.");
-			sc.close();
 		} catch (final Exception e)
 		{
 			log("Error while executing python script!");
@@ -364,7 +361,7 @@ public class RedditCKT
 
 	private static KTTIResults threshold(double threshold)
 	{
-		RedditCKT.log("Executing knowledge tracing with threshold: "+threshold);
+		RedditCKT.log("Executing knowledge tracing with threshold: " + threshold);
 		applyThreshold(threshold);
 
 		ArrayList<Sequence> trainset = new ArrayList<>(), testset = new ArrayList<>();
