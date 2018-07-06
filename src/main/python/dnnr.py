@@ -63,7 +63,8 @@ def get_feature_columns(training_dataset):
     return features_column_list
 
 
-def evaluate_classifier(classifier, train_features, train_labels, train_rmse_list, validation_features, validation_labels, validation_rmse_list):
+def evaluate_classifier(classifier, train_features, train_labels, train_rmse_list, validation_features,
+                        validation_labels, validation_rmse_list):
     train_predictions = classifier.predict(
         input_fn=lambda: eval_input_fn(train_features, batch_size=BATCH_SIZE)
     )
@@ -82,7 +83,8 @@ def evaluate_classifier(classifier, train_features, train_labels, train_rmse_lis
 
 def init_datasets(input_files_list, fold_index):
     # Load train dataset
-    train_dataframe = pd.read_csv(filepath_or_buffer=input_files_list[fold_index], delimiter=",", header=0, index_col="id")
+    train_dataframe = pd.read_csv(filepath_or_buffer=input_files_list[fold_index], delimiter=",", header=0,
+                                  index_col="id")
 
     # Merge and load validation datasets
     validation_dataframe = None
@@ -92,7 +94,8 @@ def init_datasets(input_files_list, fold_index):
         if i is not fold_index:
             if is_first:
                 # If first dataset found, just load it
-                validation_dataframe = pd.read_csv(filepath_or_buffer=dataset_str, delimiter=",", header=0, index_col="id")
+                validation_dataframe = pd.read_csv(filepath_or_buffer=dataset_str, delimiter=",", header=0,
+                                                   index_col="id")
                 is_first = False
             else:
                 # Else merge the dataset found
@@ -100,18 +103,19 @@ def init_datasets(input_files_list, fold_index):
                     pd.read_csv(filepath_or_buffer=dataset_str, delimiter=",", header=0, index_col="id")
                 )
 
-    return train_dataframe[FEATURES_NAME_LIST], train_dataframe[LABEL_NAME], validation_dataframe[FEATURES_NAME_LIST], validation_dataframe[LABEL_NAME]
+    return train_dataframe[FEATURES_NAME_LIST], train_dataframe[LABEL_NAME], validation_dataframe[FEATURES_NAME_LIST], \
+           validation_dataframe[LABEL_NAME]
 
 
 def cross_val_predict(input_files_list, output_file, folds):
     predict_label_list = []
     steps_by_period = int(STEPS / PERIOD)
 
-
     # Cross validation
     for fold_index in range(folds):
         # Load train and validation features/label
-        train_features, train_labels, validation_features, validation_labels = init_datasets(input_files_list, fold_index=fold_index)
+        train_features, train_labels, validation_features, validation_labels = init_datasets(input_files_list,
+                                                                                             fold_index=fold_index)
         INPUT_RECORDS_NUM = train_features.shape[0]
 
         # print("{}: Training records: {}".format(datetime.now(), train_features.shape[0]))
@@ -138,7 +142,8 @@ def cross_val_predict(input_files_list, output_file, folds):
             input_fn=lambda: train_input_fn(train_features, train_labels, BATCH_SIZE),
             steps=1
         )
-        evaluate_classifier(classifier, train_features, train_labels, train_rmse_list, validation_features, validation_labels, validation_rmse_list)
+        evaluate_classifier(classifier, train_features, train_labels, train_rmse_list, validation_features,
+                            validation_labels, validation_rmse_list)
         print("{}: Period {}/{}: train_rmse={}, validation_rmse={}".format(
             datetime.now(), 0, PERIOD, train_rmse_list[-1], validation_rmse_list[-1]
         ))
@@ -180,7 +185,8 @@ if __name__ == "__main__":
     output_file_str = FLAGS.output_file
 
     # Get all dataset parts
-    input_files_list = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+    input_files_list = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if
+                        os.path.isfile(os.path.join(input_dir, f))]
     num_fold = len(input_files_list)
 
     # Perform a cross-validation prediction on the whole dataset
