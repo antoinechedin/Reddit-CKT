@@ -201,3 +201,5 @@ if __name__ == "__main__":
 
     # Perform a cross-validation prediction on the whole dataset
     cross_val_predict(input_files_list, output_file_str, folds=num_fold)
+
+    print("\n{}: DNNR Finished".format(datetime.now()))

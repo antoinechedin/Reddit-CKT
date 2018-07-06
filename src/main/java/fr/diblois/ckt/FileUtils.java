@@ -67,6 +67,7 @@ public class FileUtils
 
 	static void readGroundTruthAndMetrics()
 	{
+		RedditCKT.log("Reading data.");
 		HashMap<String, HashSet<Problem>> problems = new HashMap<>();
 		ArrayList<ArrayList<String>> subsets = new ArrayList<>();
 
@@ -128,6 +129,7 @@ public class FileUtils
 	/** Reads predictions made by DNNR.py */
 	public static void readPredictions(String predictionsPath)
 	{
+		RedditCKT.log("Reading predictions.");
 		try
 		{
 			CSVParser parser = new CSVParser(new BufferedReader(new FileReader(new File(predictionsPath))), CSVFormat.DEFAULT.withFirstRecordAsHeader());
@@ -149,6 +151,7 @@ public class FileUtils
 
 	static void readSettings(String settingsPath)
 	{
+		RedditCKT.log("Reading settings.");
 		try
 		{
 			RedditCKT.settings.load(new FileInputStream(new File(settingsPath)));

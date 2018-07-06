@@ -136,6 +136,7 @@ public class RedditCKT
 
 	private static void executeDNNR()
 	{
+		RedditCKT.log("Executing DNNR.py.");
 		Process p = null;
 		String command = "python src/main/python/dnnr.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
 		try
@@ -352,6 +353,7 @@ public class RedditCKT
 		for (double threshold = minValue; threshold <= maxValue; threshold += thresholdIncrement)
 			thresholds[i++] = threshold((threshold - minValue) / (maxValue - minValue));
 
+		RedditCKT.log("Exporting data.");
 		finish(thresholds);
 		log("Finished!");
 	}
@@ -376,6 +378,7 @@ public class RedditCKT
 
 	private static KTTIResults threshold(double threshold)
 	{
+		RedditCKT.log("Executing knowledge tracing with threshold: "+threshold);
 		applyThreshold(threshold);
 
 		ArrayList<Sequence> trainset = new ArrayList<>(), testset = new ArrayList<>();
