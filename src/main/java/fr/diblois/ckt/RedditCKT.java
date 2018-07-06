@@ -20,7 +20,6 @@ import fr.diblois.ckt.data.KTFIResults;
 import fr.diblois.ckt.data.KTParameters;
 import fr.diblois.ckt.data.KTParametersStats;
 import fr.diblois.ckt.data.KTTIResults;
-import fr.diblois.ckt.old.Main;
 import fr.diblois.ckt.util.Problem;
 import fr.diblois.ckt.util.Sequence;
 import fr.diblois.ckt.util.Utils;
