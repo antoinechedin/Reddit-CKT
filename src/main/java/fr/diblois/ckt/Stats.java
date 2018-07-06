@@ -18,7 +18,7 @@ public class Stats
 				{
 					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
 
-					rmse += Math.pow(sequence.finalProblem().expectedKnowledge - problem.knowledge.mean, 2) / problems;
+					rmse += Math.pow(sequence.finalProblem().expectedKnowledge.mean - problem.knowledge.mean, 2) / problems;
 				}
 		}
 

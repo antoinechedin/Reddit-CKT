@@ -64,24 +64,24 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** Finds and sets the Knowledge after sequence n. */
-	private Gaussian computeKnowledge(int n, KTParameters parameters, Metric metric)
+	private Gaussian computeKnowledge(int n, KTParameters parameters, boolean onGroundTruth)
 	{
 		if (n == -1) return new Gaussian(parameters.startKnowledge, 0);
 
-		Gaussian k = this.computeKnowledge(this.computeKnowledge(n - 1, parameters, metric),
-				(metric == null ? this.problems.get(n).karma : this.problems.get(n).metricScores.get(metric)), parameters);
-		if (metric == null) this.problems.get(n).knowledge = k;
-		else this.problems.get(n).metricKnowledge.put(metric, k);
+		Problem p = this.problems.get(n);
+		Gaussian k = this.computeKnowledge(this.computeKnowledge(n - 1, parameters, onGroundTruth), onGroundTruth ? p.karma : p.prediction, parameters);
+		if (onGroundTruth) p.expectedKnowledge = k;
+		else p.knowledge = k;
 
-		/* if (Main.allSequences.indexOf(this) == 0) System.out.println((metric == null ? "general" : metric.name) + ", " + n + " : " + this.problems.get(n).knowledge); */
-		if (metric != null) return this.problems.get(n).metricKnowledge.get(metric);
-		return this.problems.get(n).knowledge;
+		/* if (Main.allSequences.indexOf(this) == 0) System.out.println((metric == null ? "general" : metric.name) + ", " + n + " : " + p.knowledge); */
+		return onGroundTruth ? p.expectedKnowledge : p.knowledge;
 	}
 
 	/** Determines the Knowledge values of this Sequence. */
-	void computeKnowledge(KTParameters parameters, Metric metric)
+	public void computeKnowledge(KTParameters parameters)
 	{
-		this.computeKnowledge(this.problems.size() - 1, parameters, metric);
+		this.computeKnowledge(this.problems.size() - 1, parameters, false);
+		this.computeKnowledge(this.problems.size() - 1, parameters, true);
 	}
 
 	/** Determines P(L0), P(T), P(G), P(S) */
@@ -119,7 +119,7 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** Finds the best Knowledge Sequence for this Sequence. */
-	void findKnowledgeSequence(Metric m)
+	public void findKnowledgeSequence()
 	{
 		/* this.idealKnowledge = new ArrayList<Boolean>(); for (Problem problem : this.problems) this.idealKnowledge.add(problem.isFocused); */
 
@@ -129,7 +129,7 @@ public class Sequence implements Comparable<Sequence>
 			public int compare(ArrayList<Boolean> o1, ArrayList<Boolean> o2)
 			{
 				// Revert as we want the highest first
-				return -similarity(o1, m).compareTo(similarity(o2, m));
+				return -similarity(o1).compareTo(similarity(o2));
 			}
 		});
 
@@ -139,9 +139,9 @@ public class Sequence implements Comparable<Sequence>
 		{
 			if (this.bestSimilarity == -1)
 			{
-				this.bestSimilarity = this.similarity(sequences.get(i), m);
+				this.bestSimilarity = this.similarity(sequences.get(i));
 				++total;
-			} else if (this.similarity(sequences.get(i), m) == this.bestSimilarity) ++total;
+			} else if (this.similarity(sequences.get(i)) == this.bestSimilarity) ++total;
 			else break;
 		}
 
@@ -193,11 +193,11 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** @return the similarity of the input <code>sequence</code> to this Sequence. */
-	Double similarity(ArrayList<Boolean> sequence, Metric m)
+	Double similarity(ArrayList<Boolean> sequence)
 	{
 		double similarity = 0;
 		for (int i = 0; i < this.problems.size() && i < sequence.size(); ++i)
-			if ((m == null ? this.problems.get(i).isCorrect : this.problems.get(i).metricCorrectness.get(m)) == sequence.get(i)) ++similarity;
+			if (this.problems.get(i).isCorrect == sequence.get(i)) ++similarity;
 		return similarity / this.problems.size();
 	}
 

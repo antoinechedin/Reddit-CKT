@@ -1,12 +1,23 @@
 package fr.diblois.ckt;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.Random;
 
+import com.eclipsesource.json.Json;
+import com.eclipsesource.json.JsonArray;
+import com.eclipsesource.json.JsonObject;
+import com.eclipsesource.json.PrettyPrint;
+
+import fr.diblois.ckt.data.Gaussian;
+import fr.diblois.ckt.data.KTFIResults;
+import fr.diblois.ckt.data.KTParameters;
 import fr.diblois.ckt.data.KTParametersStats;
 import fr.diblois.ckt.data.KTTIResults;
 import fr.diblois.ckt.util.Problem;
@@ -20,60 +31,237 @@ public class RedditCKT
 	public static final ArrayList<Sequence> dataset = new ArrayList<>();
 	public static String dataset_directory, results_directory;
 	public static int folds, kttis;
-	public static double karma_rmse, kt_rmse, kt_rmse_stdev;
+	public static double karma_rmse;
 	private static final ArrayList<String> log = new ArrayList<>();
 	public static boolean minFixed, maxFixed;
 	public static double minValue, maxValue;
 	public static final Properties settings = new Properties();
-	public static final ArrayList<Sequence> testset = new ArrayList<>();
+	public static final ArrayList<ArrayList<Sequence>> subsets = new ArrayList<>();
+	// public static final ArrayList<Sequence> testset = new ArrayList<>(), trainset = new ArrayList<>();
 
-	private static void exportParams()
+	/** Uses the input <code>threshold</code> to determine the correctness of the problem. */
+	private static void applyThreshold(double threshold)
 	{
-		String[][] data = new String[11][2];
-		data[0][0] = "P(L0) Avg";
-		data[0][1] = Utils.toString(avg_parameters.startKnowledge);
-
-		data[1][0] = "P(L0) Stdev";
-		data[1][1] = Utils.toString(stdev_parameters.startKnowledge);
-
-		data[2][0] = "P(T) Avg";
-		data[2][1] = Utils.toString(avg_parameters.transition);
-
-		data[3][0] = "P(T) Stdev";
-		data[3][1] = Utils.toString(stdev_parameters.transition);
-
-		data[4][0] = "P(G) Avg";
-		data[4][1] = Utils.toString(avg_parameters.guess);
-
-		data[5][0] = "P(G) Stdev";
-		data[5][1] = Utils.toString(stdev_parameters.guess);
-
-		data[6][0] = "P(S) Avg";
-		data[6][1] = Utils.toString(avg_parameters.slip);
-
-		data[7][0] = "P(S) Stdev";
-		data[7][1] = Utils.toString(stdev_parameters.slip);
-
-		data[8][0] = "Karma RMSE";
-		data[8][1] = Utils.toString(karma_rmse);
-
-		data[9][0] = "KT RMSE Avg";
-		data[9][1] = Utils.toString(kt_rmse);
-
-		data[10][0] = "KT RMSE Stdev";
-		data[10][1] = Utils.toString(kt_rmse_stdev);
+		for (Sequence sequence : dataset)
+			for (Problem problem : sequence.problems)
+			{
+				problem.isCorrect = problem.prediction >= threshold;
+				problem.isTruthCorrect = problem.karma >= threshold;
+			}
 	}
 
-	private static void exportUserGraphs()
+	/** @return The Precision for the Knowledge for the input sequences. */
+	private static double computeKTRMSE(ArrayList<Sequence> sequences)
 	{
-		// TODO Auto-generated method stub
+		double precision = 0;
+		int problems;// Number of representative problems in current sequence
+		for (Sequence sequence : sequences)
+		{
+			problems = -1;
+			for (Problem problem : sequence.problems)
+				if (problem.isRepresentative)
+				{
+					if (problems == -1) problems = sequence.problems.size() - sequence.problems.indexOf(problem);
 
+					precision += Math.pow(problem.expectedKnowledge.mean - problem.knowledge.mean, 2) / problems;
+				}
+		}
+
+		return Math.sqrt(precision / sequences.size());
 	}
 
-	private static void finish()
+	/** Determines P(L0), P(T), P(G), P(S). Analyzes the {@link Main#learningSet learning set} and returns the parameters.
+	 * 
+	 * @param trainset */
+	private static KTParameters computeParameters(ArrayList<Sequence> trainset)
 	{
-		exportParams();
-		exportUserGraphs();
+		double kStart = 0, mTransition = 0, mGuess = 0, mSlip = 0;
+
+		// P(L0)
+		int count = 0;
+		for (Sequence sequence : trainset)
+		{
+			kStart += sequence.knowledgeSequence.get(0);
+			++count;
+			/* Tried using more than one for starting knowledge, but had close to no impact. if (sequence.knowledgeSequence.size() > 1) { kStart += sequence.knowledgeSequence.get(1); ++s; } if (sequence.knowledgeSequence.size() > 2) { kStart += sequence.knowledgeSequence.get(2); ++s; } */
+		}
+		kStart /= count;
+
+		// mu(P(T)), mu(P(G)), mu(P(S))
+		int tCount = 0, gCount = 0, sCount = 0;
+		for (Sequence sequence : trainset)
+		{
+			sequence.computeProbabilities(kStart);
+			if (!Double.isNaN(sequence.parameters.transition))
+			{
+				mTransition += sequence.parameters.transition;
+				++tCount;
+			}
+			if (!Double.isNaN(sequence.parameters.guess.mean))
+			{
+				mGuess += sequence.parameters.guess.next();
+				++gCount;
+			}
+			if (!Double.isNaN(sequence.parameters.slip.mean))
+			{
+				mSlip += sequence.parameters.slip.next();
+				++sCount;
+			}
+		}
+		mTransition /= tCount;
+		mGuess /= gCount;
+		mSlip /= sCount;
+
+		// sigma(P(G)), sigma(P(S))
+		// double sTransition = 0;
+		double sGuess = 0, sSlip = 0;
+		for (Sequence sequence : trainset)
+		{
+			// if (!Double.isNaN(sequence.parameters.transition)) sTransition += Math.pow(sequence.parameters.transition - mTransition, 2);
+			if (!Double.isNaN(sequence.parameters.guess.mean)) sGuess += Math.pow(sequence.parameters.guess.mean - mGuess, 2);
+			if (!Double.isNaN(sequence.parameters.slip.mean)) sSlip += Math.pow(sequence.parameters.slip.mean - mSlip, 2);
+		}
+		// sTransition = Math.sqrt(sTransition / tSize);
+		sGuess = Math.sqrt(sGuess / gCount);
+		sSlip = Math.sqrt(sSlip / sCount);
+
+		// Can happen if threshold is too low or too high
+		if (Double.isNaN(mGuess)) mGuess = 0;
+		if (Double.isNaN(sGuess)) sGuess = 0;
+		if (Double.isNaN(mSlip)) mSlip = 0;
+		if (Double.isNaN(sSlip)) sSlip = 0;
+
+		return new KTParameters(kStart, mTransition, new Gaussian(mGuess, sGuess), new Gaussian(mSlip, sSlip));
+	}
+
+	private static void executeDNNR()
+	{
+		Process p = null;
+		String command = "python src/main/python/dnnr.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
+		try
+		{
+			p = Runtime.getRuntime().exec(command);
+		} catch (final IOException e)
+		{
+			e.printStackTrace();
+		}
+
+		// Wait to get exit value
+		try
+		{
+			p.waitFor();
+			final int exitValue = p.waitFor();
+			if (exitValue == 0) System.out.println("Successfully executed the command: " + command);
+			else
+			{
+				System.out.println("Failed to execute the following command: " + command + " due to the following error(s):");
+				try (final BufferedReader b = new BufferedReader(new InputStreamReader(p.getErrorStream())))
+				{
+					String line;
+					if ((line = b.readLine()) != null) System.out.println(line);
+				} catch (final IOException e)
+				{
+					e.printStackTrace();
+				}
+			}
+		} catch (InterruptedException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	private static void exportParams(KTTIResults[] thresholds)
+	{
+		String[] header = { "Threshold", "rmse_pred", "rmse_kt", "corrects_gt", "corrects", "PL0_avg", "PL0_stdev", "PT_avg", "PT_stdev", "PS_avg", "PS_stdev",
+				"PG_avg", "PG_stdev" };
+		String[][] data = new String[thresholds.length + 1][header.length];
+		data[0] = header;
+
+		for (int t = 1; t <= thresholds.length; ++t)
+		{
+			KTTIResults threshold = thresholds[t - 1];
+			data[t][0] = Utils.toString(threshold.threshold);
+			data[t][1] = Utils.toString(karma_rmse);
+			data[t][2] = Utils.toString(threshold.ktRMSE());
+			data[t][3] = Utils.toString(threshold.correctsGT());
+			data[t][4] = Utils.toString(threshold.corrects());
+			data[t][5] = Utils.toString(threshold.pl0_avg());
+			data[t][6] = Utils.toString(threshold.pl0_stdev());
+			data[t][7] = Utils.toString(threshold.pt_avg());
+			data[t][8] = Utils.toString(threshold.pt_stdev());
+			data[t][9] = Utils.toString(threshold.ps_avg());
+			data[t][10] = Utils.toString(threshold.ps_stdev());
+			data[t][11] = Utils.toString(threshold.pg_avg());
+			data[t][12] = Utils.toString(threshold.pg_stdev());
+		}
+
+		FileUtils.exportData(new File(results_directory + File.separator + "params.csv"), data);
+	}
+
+	private static void exportUserGraphs(KTTIResults[] thresholds)
+	{
+		int max = 0;
+		for (int t = 1; t < thresholds.length; ++t)
+			if (thresholds[t].ktRMSE() > thresholds[max].ktRMSE()) max = t;
+
+		threshold(thresholds[max].threshold);// Don't reduce threshold because it's already stocked as reduced
+		JsonArray root = Json.array();
+		for (Sequence sequence : dataset)
+		{
+			JsonObject seq = Json.object();
+			seq.add("name", sequence.name);
+
+			JsonArray karma = Json.array(), karma_pred = Json.array(), kt = Json.array(), kt_pred = Json.array();
+			for (Problem problem : sequence.problems)
+			{
+				karma.add(Json.value(problem.karma));
+				karma_pred.add(Json.value(problem.prediction));
+				kt.add(Json.value(problem.expectedKnowledge.mean));
+				kt_pred.add(Json.value(problem.knowledge.mean));
+			}
+
+			seq.add("karma", karma);
+			seq.add("karma_pred", karma_pred);
+			seq.add("kt", kt);
+			seq.add("kt_pred", kt_pred);
+			root.add(seq);
+		}
+
+		try
+		{
+			String data = root.toString(PrettyPrint.indentWithTabs());
+			BufferedWriter bw = new BufferedWriter(new FileWriter(new File(results_directory + File.separator + "usergraphs.json")));
+			bw.write(data);
+			bw.close();
+		} catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	/** Determines which Problems should be used to compute Precision. */
+	private static void findRepresentativeProblems(ArrayList<Sequence> set)
+	{
+		for (Sequence sequence : set)
+		{
+			if (settings.getProperty("smooth_rmse").equals("true"))
+			{
+				Problem best = sequence.finalProblem();
+				// Find problem with smallest distance to expected
+				for (Problem p : sequence.problems)
+					if (Math.abs(p.expectedKnowledge.mean - p.knowledge.mean) < Math.abs(best.expectedKnowledge.mean - best.knowledge.mean)) best = p;
+
+				// Use it and all problems after
+				for (int i = sequence.problems.indexOf(best); i < sequence.problems.size(); ++i)
+					sequence.problems.get(i).isRepresentative = true;
+			} else sequence.finalProblem().isRepresentative = true;
+		}
+	}
+
+	private static void finish(KTTIResults[] thresholds)
+	{
+		exportParams(thresholds);
+		exportUserGraphs(thresholds);
 
 		try
 		{
@@ -86,15 +274,6 @@ public class RedditCKT
 			log("File log.txt couldn't be opened: " + e.getMessage());
 			e.printStackTrace();
 		}
-	}
-
-	/** Executes a single fold iteration in the cross validation. */
-	private static KTTIResults fold(int fold)
-	{
-		testset.clear();
-		// Execute Python script
-
-		return null;
 	}
 
 	public static Problem getProblem(String id)
@@ -110,6 +289,34 @@ public class RedditCKT
 		for (Sequence s : dataset)
 			if (s.name.equals(id)) return s;
 		return null;
+	}
+
+	/** Executes a single fold iteration in the cross validation. */
+	private static KTFIResults knowledgeTracing(int fold, double threshold, ArrayList<Sequence> trainset, ArrayList<Sequence> testset)
+	{
+		Utils.random = new Random(1);
+		// log("Executing Knowledge Tracing...");
+		for (Sequence sequence : trainset)
+			sequence.findKnowledgeSequence();
+
+		double corrects = 0, correctsGT = 0, total = 0;
+		for (Sequence sequence : trainset)
+			for (Problem problem : sequence.problems)
+			{
+				if (problem.isCorrect) ++corrects;
+				if (problem.isTruthCorrect) ++correctsGT;
+				++total;
+			}
+
+		corrects = corrects * 100 / total;
+		correctsGT = correctsGT * 100 / total;
+
+		KTParameters params = computeParameters(trainset);
+		for (Sequence sequence : testset)
+			sequence.computeKnowledge(params);
+		findRepresentativeProblems(testset);
+
+		return new KTFIResults(fold, params, correctsGT, corrects, computeKTRMSE(testset));
 	}
 
 	/** Prints a message and adds it to the log. */
@@ -131,16 +338,60 @@ public class RedditCKT
 
 		FileUtils.readSettings(args.length == 0 ? "settings.properties" : args[0]);
 		FileUtils.readGroundTruthAndMetrics();
-		// Execute DNNr.py
+		executeDNNR();
 		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + "dnn_predictions.csv");
+		reduceAndCenter();
 		karma_rmse = Stats.computeKarmaRMSE();
 
-		// Iterate for cross validation
-		KTTIResults[] crossValidation = new KTTIResults[folds];
-		for (int fold = 0; fold < folds; ++fold)
-			crossValidation[fold] = fold(fold);
+		double thresholdIncrement = (maxValue - minValue) * 1. / kttis;
 
-		finish();
+		// Iterate for cross validation
+		KTTIResults[] thresholds = new KTTIResults[kttis + 1];
+		int i = 0;
+		System.out.println(thresholdIncrement);
+		for (double threshold = minValue; threshold <= maxValue; threshold += thresholdIncrement)
+			thresholds[i++] = threshold((threshold - minValue) / (maxValue - minValue));
+
+		finish(thresholds);
+		log("Finished!");
+	}
+
+	private static void reduceAndCenter()
+	{
+		for (Sequence sequence : dataset)
+			for (Problem problem : sequence.problems)
+			{
+				if (!minFixed && problem.karma < minValue) minValue = problem.karma;
+				if (!minFixed && problem.prediction < minValue) minValue = problem.prediction;
+				if (!maxFixed && problem.karma > maxValue) maxValue = problem.karma;
+				if (!maxFixed && problem.prediction > maxValue) maxValue = problem.prediction;
+			}
+		for (Sequence sequence : dataset)
+			for (Problem problem : sequence.problems)
+			{
+				problem.karma = (problem.karma - minValue) / (maxValue - minValue);
+				problem.prediction = (problem.prediction - minValue) / (maxValue - minValue);
+			}
+	}
+
+	private static KTTIResults threshold(double threshold)
+	{
+		applyThreshold(threshold);
+
+		ArrayList<Sequence> trainset = new ArrayList<>(), testset = new ArrayList<>();
+		KTFIResults[] validation = new KTFIResults[folds];
+		for (int fold = 0; fold < folds; ++fold)
+		{
+			trainset.clear();
+			testset.clear();
+
+			testset.addAll(subsets.get(fold));
+			trainset.addAll(dataset);
+			trainset.removeAll(trainset);
+
+			validation[fold] = knowledgeTracing(fold, threshold, trainset, testset);
+		}
+		return new KTTIResults(threshold, validation);
 	}
 
 }

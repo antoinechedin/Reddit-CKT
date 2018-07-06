@@ -4,24 +4,112 @@ package fr.diblois.ckt.data;
 public class KTTIResults
 {
 
-	/** Propotion of correct problems in ground truth. */
-	public final double correct_problems_gt;
-	/** Proportion of correct problems in predicted karma. */
-	public final double correct_problems_predicted;
-	/** Parameters predicted for this iteration. */
-	public final KTParameters parameters;
-	/** The RMSE on Knowledge Tracing results. */
-	public final double rmse_kt;
+	private double kt_rmse = -1;
+	/** The KTFIs done in this KTTI. */
+	public final KTFIResults[] ktfis;
 	/** The threshold that was used during this iteration. */
 	public final double threshold;
 
-	public KTTIResults(KTParameters parameters, double threshold, double correct_problems_gt, double correct_problems_predicted, double rmse_kt)
+	public KTTIResults(double threshold, KTFIResults[] ktfis)
 	{
-		this.parameters = parameters;
 		this.threshold = threshold;
-		this.correct_problems_gt = correct_problems_gt;
-		this.correct_problems_predicted = correct_problems_predicted;
-		this.rmse_kt = rmse_kt;
+		this.ktfis = ktfis;
+	}
+
+	public double corrects()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.correct_problems_predicted;
+		return avg * 1. / this.ktfis.length;
+	}
+
+	public double correctsGT()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.correct_problems_gt;
+		return avg * 1. / this.ktfis.length;
+	}
+
+	public double ktRMSE()
+	{
+		if (this.kt_rmse == -1)
+		{
+			double avg = 0;
+			for (KTFIResults ktfi : ktfis)
+				avg += ktfi.rmse_kt;
+			this.kt_rmse = avg / this.ktfis.length;
+		}
+		return this.kt_rmse;
+	}
+
+	public double pg_avg()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parameters.guess.mean;
+		return avg / this.ktfis.length;
+	}
+
+	public double pg_stdev()
+	{
+		double avg = this.pg_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parameters.guess.mean - avg, 2);
+		return stdev / this.ktfis.length;
+	}
+
+	public double pl0_avg()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parameters.startKnowledge;
+		return avg / this.ktfis.length;
+	}
+
+	public double pl0_stdev()
+	{
+		double avg = this.pl0_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parameters.startKnowledge - avg, 2);
+		return stdev / this.ktfis.length;
+	}
+
+	public double ps_avg()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parameters.slip.mean;
+		return avg / this.ktfis.length;
+	}
+
+	public double ps_stdev()
+	{
+		double avg = this.ps_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parameters.slip.mean - avg, 2);
+		return stdev / this.ktfis.length;
+	}
+
+	public double pt_avg()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parameters.transition;
+		return avg / this.ktfis.length;
+	}
+
+	public double pt_stdev()
+	{
+		double avg = this.pt_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parameters.transition - avg, 2);
+		return stdev / this.ktfis.length;
 	}
 
 }
