@@ -68,14 +68,16 @@ public class FileUtils
 	static void readGroundTruthAndMetrics()
 	{
 		HashMap<String, HashSet<Problem>> problems = new HashMap<>();
+		ArrayList<ArrayList<String>> subsets = new ArrayList<>();
 
 		for (int fold = 0; fold < RedditCKT.folds; ++fold)
 		{
 			problems.clear();
+			subsets.add(new ArrayList<>());
 			try
 			{
 				CSVParser parser = new CSVParser(
-						new BufferedReader(new FileReader(new File(RedditCKT.dataset_directory + "_fold" + File.separator + "part_" + fold + ".csv"))),
+						new BufferedReader(new FileReader(new File(RedditCKT.dataset_directory + File.separator + "part_" + fold + ".csv"))),
 						CSVFormat.DEFAULT.withFirstRecordAsHeader());
 
 				for (CSVRecord record : parser)
@@ -84,6 +86,7 @@ public class FileUtils
 					{
 						Problem p = Problem.create(record);
 						if (!problems.containsKey(p.sequence)) problems.put(p.sequence, new HashSet<>());
+						if (!subsets.get(subsets.size() - 1).contains(p.sequence)) subsets.get(subsets.size() - 1).add(p.sequence);
 						problems.get(p.sequence).add(p);
 					} catch (Exception e)
 					{
@@ -108,6 +111,14 @@ public class FileUtils
 			s.problems.addAll(problems.get(sequence));
 			s.problems.sort(Comparator.naturalOrder());
 			RedditCKT.dataset.add(s);
+		}
+
+		for (ArrayList<String> subset : subsets)
+		{
+			ArrayList<Sequence> s = new ArrayList<>();
+			for (String seq : subset)
+				s.add(RedditCKT.getSequence(seq));
+			RedditCKT.subsets.add(s);
 		}
 
 		RedditCKT.dataset.sort(Comparator.naturalOrder());

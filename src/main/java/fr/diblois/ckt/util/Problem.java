@@ -1,7 +1,5 @@
 package fr.diblois.ckt.util;
 
-import java.util.HashMap;
-
 import org.apache.commons.csv.CSVRecord;
 
 import fr.diblois.ckt.data.Gaussian;
@@ -17,10 +15,14 @@ public class Problem implements Comparable<Problem>
 		return p;
 	}
 
+	public double avg_knowledge;
+	public int avg_knowledge_count;
+	public double avg_knowledge_exp;
+	public int avg_knowledge_exp_count;
 	/** The Knowledge aggregated from all metrics (only used for representative Problems). */
-	public Gaussian aggregatedKnowledge;
+	// public Gaussian aggregatedKnowledge;
 	/** The knowledge expected after this Problem. */
-	public double expectedKnowledge;
+	public Gaussian expectedKnowledge;
 	/** Index of the Problem in the Exploration. */
 	public final int index;
 	/** True if Problem is considered correct for the ideal sequence. */
@@ -34,11 +36,11 @@ public class Problem implements Comparable<Problem>
 	/** The Knowledge computed after this Problem. */
 	public Gaussian knowledge;
 	/** True if Problem is considered correct for the ideal sequence for each metric. */
-	public final HashMap<Metric, Boolean> metricCorrectness;
+	// public final HashMap<Metric, Boolean> metricCorrectness;
 	/** The knowledge for each individual metric. */
-	public final HashMap<Metric, Gaussian> metricKnowledge;
+	// public final HashMap<Metric, Gaussian> metricKnowledge;
 	/** The score for each individual metric. */
-	public final HashMap<Metric, Double> metricScores;
+	// public final HashMap<Metric, Double> metricScores;
 	/** Problem name. */
 	public final String name;
 	/** The prediction of this problem's karma. */
@@ -56,9 +58,7 @@ public class Problem implements Comparable<Problem>
 		this.name = name;
 		this.sequence = sequence;
 		this.index = index;
-		this.metricScores = new HashMap<Metric, Double>();
-		this.metricKnowledge = new HashMap<Metric, Gaussian>();
-		this.metricCorrectness = new HashMap<Metric, Boolean>();
+		/* this.metricScores = new HashMap<Metric, Double>(); this.metricKnowledge = new HashMap<Metric, Gaussian>(); this.metricCorrectness = new HashMap<Metric, Boolean>(); */
 	}
 
 	/** @return A copy of this Problem, with scores as expected. */
