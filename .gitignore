@@ -117,5 +117,6 @@ local.properties
 ### Datafiles
 *.csv
 *.txt
+!requirements.txt
 *jar
 .~lock.results.csv
