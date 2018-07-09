@@ -21,7 +21,7 @@ public class KTTIResults
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
 			avg += ktfi.correct_problems_predicted;
-		return avg * 1. / this.ktfis.length;
+		return avg * 1. / this.ktfis.length / 100;
 	}
 
 	public double correctsGT()
@@ -29,7 +29,7 @@ public class KTTIResults
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
 			avg += ktfi.correct_problems_gt;
-		return avg * 1. / this.ktfis.length;
+		return avg * 1. / this.ktfis.length / 100;
 	}
 
 	public double ktRMSE()

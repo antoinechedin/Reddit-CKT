@@ -136,7 +136,7 @@ public class RedditCKT
 
 	private static void exportParams(KTTIResults[] thresholds)
 	{
-		String[] header = { "Threshold", "rmse_pred", "rmse_kt", "corrects_gt", "corrects", "PL0_avg", "PL0_stdev", "PT_avg", "PT_stdev", "PS_avg", "PS_stdev",
+		String[] header = { "Threshold", "rmse_pred", "rmse_kt", "corrects_karma", "corrects_pred", "PL0_avg", "PL0_stdev", "PT_avg", "PT_stdev", "PS_avg", "PS_stdev",
 				"PG_avg", "PG_stdev" };
 		String[][] data = new String[thresholds.length + 1][header.length];
 		data[0] = header;
