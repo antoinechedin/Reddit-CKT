@@ -119,6 +119,7 @@ local.properties
 *.txt
 !requirements.txt
 *.json
-model_dir/
+model_dir/*
+!model_dir/.gitkeep
 *jar
 .~lock.results.csv
