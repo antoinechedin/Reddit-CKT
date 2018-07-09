@@ -73,7 +73,6 @@ public class FileUtils
 
 		for (int fold = 0; fold < RedditCKT.folds; ++fold)
 		{
-			problems.clear();
 			subsets.add(new ArrayList<>());
 			try
 			{
@@ -137,7 +136,8 @@ public class FileUtils
 			{
 				String id = record.get(0);
 				Problem p = RedditCKT.getProblem(id);
-				p.prediction = Double.valueOf(record.get(1));
+				String pred =record.get(1);
+				p.prediction = Double.valueOf(pred);
 			}
 			parser.close();
 		} catch (FileNotFoundException e)

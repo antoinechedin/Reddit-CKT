@@ -184,6 +184,7 @@ def cross_val_predict(input_files_list, output_file, folds):
         # plt.show()
     predict_label_dataframe.to_csv(output_file)
 
+
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()

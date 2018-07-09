@@ -118,5 +118,6 @@ local.properties
 *.csv
 *.txt
 !requirements.txt
+*.json
 *jar
 .~lock.results.csv
