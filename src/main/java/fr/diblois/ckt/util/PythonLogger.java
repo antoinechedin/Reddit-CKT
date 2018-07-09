@@ -10,7 +10,6 @@ public class PythonLogger implements Runnable
 	@Override
 	public void run()
 	{
-		System.out.println("started");
 		while (RedditCKT.process == null)
 			try
 			{
@@ -20,12 +19,24 @@ public class PythonLogger implements Runnable
 				e.printStackTrace();
 			}
 
-		System.out.println("process is created");
 		String line;
 		Scanner sc = new Scanner(RedditCKT.process.getInputStream());
-		while (!(line = sc.nextLine()).contains("DNNR Finished"))
-			System.out.println("[PYTHON]: " + line);
-		System.out.println("didn't wait");
+
+		while (!RedditCKT.processFinished)
+		{
+			if (sc.hasNextLine())
+			{
+				line = sc.nextLine();
+				if (line.contains("DNNR Finished")) RedditCKT.processFinished = true;
+				else System.out.println("[PYTHON]: " + line);
+			} else try
+			{
+				Thread.sleep(100);
+			} catch (InterruptedException e)
+			{
+				e.printStackTrace();
+			}
+		}
 		sc.close();
 	}
 
