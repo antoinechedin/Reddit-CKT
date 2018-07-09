@@ -118,5 +118,7 @@ local.properties
 *.csv
 *.txt
 !requirements.txt
+*.json
+model_dir/
 *jar
 .~lock.results.csv
