@@ -4,6 +4,7 @@ package fr.diblois.ckt.data;
 public class KTTIResults
 {
 
+	private double kt_mae = -1;
 	private double kt_rmse = -1;
 	/** The KTFIs done in this KTTI. */
 	public final KTFIResults[] ktfis;
@@ -30,6 +31,18 @@ public class KTTIResults
 		for (KTFIResults ktfi : ktfis)
 			avg += ktfi.correct_problems_gt;
 		return avg * 1. / this.ktfis.length / 100;
+	}
+
+	public double ktMAE()
+	{
+		if (this.kt_mae == -1)
+		{
+			double avg = 0;
+			for (KTFIResults ktfi : ktfis)
+				avg += ktfi.mae_kt;
+			this.kt_mae = avg / this.ktfis.length;
+		}
+		return this.kt_mae;
 	}
 
 	public double ktRMSE()

@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Scanner;
 
 import com.eclipsesource.json.Json;
 import com.eclipsesource.json.JsonArray;
@@ -31,7 +32,7 @@ public class RedditCKT
 	public static final ArrayList<Sequence> dataset = new ArrayList<>();
 	public static String dataset_directory, results_directory;
 	public static int folds, kttis;
-	public static double karma_rmse;
+	public static double karma_rmse, karma_mae;
 	private static final ArrayList<String> log = new ArrayList<>();
 	public static boolean minFixed, maxFixed;
 	public static double minValue, maxValue;
@@ -115,7 +116,7 @@ public class RedditCKT
 		return new KTParameters(kStart, mTransition, new Gaussian(mGuess, sGuess), new Gaussian(mSlip, sSlip));
 	}
 
-	private static void executeDNNR()
+	public static void executeDNNR()
 	{
 		RedditCKT.log("Executing DNNR.py.");
 		String command = "python src/main/python/dnnr.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
@@ -136,8 +137,8 @@ public class RedditCKT
 
 	private static void exportParams(KTTIResults[] thresholds)
 	{
-		String[] header = { "Threshold", "rmse_pred", "rmse_kt", "corrects_karma", "corrects_pred", "PL0_avg", "PL0_stdev", "PT_avg", "PT_stdev", "PS_avg", "PS_stdev",
-				"PG_avg", "PG_stdev" };
+		String[] header = { "Threshold", "mae_pred", "mae_kt", "rmse_pred", "rmse_kt", "corrects_karma", "corrects_pred", "PL0_avg", "PL0_stdev", "PT_avg",
+				"PT_stdev", "PS_avg", "PS_stdev", "PG_avg", "PG_stdev" };
 		String[][] data = new String[thresholds.length + 1][header.length];
 		data[0] = header;
 
@@ -145,6 +146,8 @@ public class RedditCKT
 		{
 			KTTIResults threshold = thresholds[t - 1];
 			data[t][0] = Utils.toString(threshold.threshold);
+			data[t][1] = Utils.toString(karma_mae);
+			data[t][2] = Utils.toString(threshold.ktMAE());
 			data[t][1] = Utils.toString(karma_rmse);
 			data[t][2] = Utils.toString(threshold.ktRMSE());
 			data[t][3] = Utils.toString(threshold.correctsGT());
@@ -164,12 +167,14 @@ public class RedditCKT
 
 	private static void exportUserGraphs(KTTIResults[] thresholds)
 	{
-		int min = 0;
-		for (int t = 1; t < thresholds.length; ++t)
-			if (thresholds[t].ktRMSE() < thresholds[min].ktRMSE()) min = t;
+		double t = 0;
+		Scanner sc = new Scanner(System.in);
+		System.out.println("Type in threshold to make usergraphs with (unreduced).");
+		t = sc.nextDouble();
+		sc.close();
 
 		log("Executing best threshold again to gather user graphs.");
-		threshold(thresholds[min].threshold);// Don't reduce threshold because it's already stocked as reduced
+		threshold((t - minValue) / (maxValue - minValue));// Don't reduce threshold because it's already stocked as reduced
 		JsonArray root = Json.array();
 		for (Sequence sequence : dataset)
 		{
@@ -281,7 +286,7 @@ public class RedditCKT
 			sequence.computeKnowledge(params);
 		findRepresentativeProblems(testset);
 
-		return new KTFIResults(fold, params, correctsGT, corrects, Stats.computeKTRMSE(testset));
+		return new KTFIResults(fold, params, correctsGT, corrects, Stats.computeKTRMSE(testset), Stats.computeMAE(testset));
 	}
 
 	/** Prints a message and adds it to the log. */
@@ -307,6 +312,7 @@ public class RedditCKT
 		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + "dnnr_predictions.csv");
 		reduceAndCenter();
 		karma_rmse = Stats.computeKarmaRMSE();
+		karma_mae = Stats.computeKarmaMAE();
 
 		double thresholdIncrement = (maxValue - minValue) * 1. / kttis;
 
