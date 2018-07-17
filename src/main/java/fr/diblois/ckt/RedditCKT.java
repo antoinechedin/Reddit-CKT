@@ -328,7 +328,7 @@ public class RedditCKT
 		FileUtils.readSettings(args.length == 0 ? "settings.properties" : args[0]);
 		FileUtils.readGroundTruthAndMetrics();
 		if (script != null) executeDNNR();
-		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + "dnnr_predictions.csv");
+		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + RedditCKT.predictions_file);
 		reduceAndCenter();
 		karma_rmse = Stats.computeKarmaRMSE();
 		karma_mae = Stats.computeKarmaMAE();
