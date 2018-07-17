@@ -65,6 +65,23 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
+	public double pg_gt()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parametersGT.guess.mean;
+		return avg / this.ktfis.length;
+	}
+
+	public double pg_gtstdev()
+	{
+		double avg = this.pg_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parametersGT.guess.mean - avg, 2);
+		return stdev / this.ktfis.length;
+	}
+
 	public double pg_stdev()
 	{
 		double avg = this.pg_avg();
@@ -80,6 +97,23 @@ public class KTTIResults
 		for (KTFIResults ktfi : ktfis)
 			avg += ktfi.parameters.startKnowledge;
 		return avg / this.ktfis.length;
+	}
+
+	public double pl0_gt()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parametersGT.startKnowledge;
+		return avg / this.ktfis.length;
+	}
+
+	public double pl0_gtstdev()
+	{
+		double avg = this.pl0_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parametersGT.startKnowledge - avg, 2);
+		return stdev / this.ktfis.length;
 	}
 
 	public double pl0_stdev()
@@ -99,6 +133,23 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
+	public double ps_gt()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parametersGT.slip.mean;
+		return avg / this.ktfis.length;
+	}
+
+	public double ps_gtstdev()
+	{
+		double avg = this.ps_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parametersGT.slip.mean - avg, 2);
+		return stdev / this.ktfis.length;
+	}
+
 	public double ps_stdev()
 	{
 		double avg = this.ps_avg();
@@ -114,6 +165,23 @@ public class KTTIResults
 		for (KTFIResults ktfi : ktfis)
 			avg += ktfi.parameters.transition;
 		return avg / this.ktfis.length;
+	}
+
+	public double pt_gt()
+	{
+		double avg = 0;
+		for (KTFIResults ktfi : ktfis)
+			avg += ktfi.parametersGT.transition;
+		return avg / this.ktfis.length;
+	}
+
+	public double pt_gtstdev()
+	{
+		double avg = this.pt_avg();
+		double stdev = 0;
+		for (KTFIResults ktfi : ktfis)
+			stdev += Math.pow(ktfi.parametersGT.transition - avg, 2);
+		return stdev / this.ktfis.length;
 	}
 
 	public double pt_stdev()

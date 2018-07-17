@@ -172,6 +172,7 @@ public class FileUtils
 		RedditCKT.column_karma_predicted = RedditCKT.settings.getProperty("column_karma_predicted");
 		RedditCKT.predictions_file = RedditCKT.settings.getProperty("predictions_file");
 		RedditCKT.script = RedditCKT.settings.getProperty("execute_script");
+		if (RedditCKT.script != null && RedditCKT.script.equals("null")) RedditCKT.script = null;
 
 		try
 		{

@@ -16,10 +16,14 @@ public class Sequence implements Comparable<Sequence>
 	public double bestSimilarity;
 	/** The final Knowledge Sequence for this Sequence. */
 	public ArrayList<Double> knowledgeSequence;
+	/** The final Knowledge Sequence for this Sequence. */
+	public ArrayList<Double> knowledgeSequenceGT;
 	/** Sequence name. */
 	public final String name;
 	/** Probabilities for this Sequence. Some can be NaN if the sequence is full of 1 or full of 0. */
 	public KTParameters parameters;
+	/** Probabilities for Ground truth for this Sequence. Some can be NaN if the sequence is full of 1 or full of 0. */
+	public KTParameters parametersGT;
 	/** The list of Problems in this Sequence. */
 	public ArrayList<Problem> problems;
 
@@ -78,38 +82,44 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** Determines the Knowledge values of this Sequence. */
-	public void computeKnowledge(KTParameters parameters)
+	public void computeKnowledge(KTParameters parameters, boolean onGroundTruth)
 	{
-		this.computeKnowledge(this.problems.size() - 1, parameters, false);
-		this.computeKnowledge(this.problems.size() - 1, parameters, true);
+		this.computeKnowledge(this.problems.size() - 1, parameters, onGroundTruth);
 	}
 
-	/** Determines P(L0), P(T), P(G), P(S) */
-	public void computeProbabilities(double startKnowledge)
+	/** Determines P(L0), P(T), P(G), P(S)
+	 * 
+	 * @param onGroundTruth */
+	public KTParameters computeProbabilities(double startKnowledge, boolean onGroundTruth)
 	{
+		ArrayList<Double> sequence = onGroundTruth ? this.knowledgeSequenceGT : this.knowledgeSequence;
+
 		double tNum = 0, tDenom = 0; // Numerator and denominator
 		double gNum = 0, gDenom = 0;
 		double sNum = 0, sDenom = 0;
 
-		for (int i = 0; i < this.knowledgeSequence.size(); ++i)
+		for (int i = 0; i < sequence.size(); ++i)
 		{
 			if (i == 0) // K0 -> K1
 			{
-				tNum += (1 - startKnowledge) * this.knowledgeSequence.get(i);
+				tNum += (1 - startKnowledge) * sequence.get(i);
 				tDenom += 1 - startKnowledge;
 			} else
 			{
-				tNum += (1 - this.knowledgeSequence.get(i - 1)) * this.knowledgeSequence.get(i);
-				tDenom += 1 - this.knowledgeSequence.get(i - 1);
+				tNum += (1 - sequence.get(i - 1)) * sequence.get(i);
+				tDenom += 1 - sequence.get(i - 1);
 			}
-			gNum += (this.problems.get(i).isCorrect ? 1 : 0) * (1 - this.knowledgeSequence.get(i));
-			gDenom += (1 - this.knowledgeSequence.get(i));
-			sNum += (this.problems.get(i).isCorrect ? 0 : 1) * this.knowledgeSequence.get(i);
-			sDenom += this.knowledgeSequence.get(i);
+			gNum += ((onGroundTruth ? this.problems.get(i).isTruthCorrect : this.problems.get(i).isCorrect) ? 1 : 0) * (1 - sequence.get(i));
+			gDenom += (1 - sequence.get(i));
+			sNum += ((onGroundTruth ? this.problems.get(i).isTruthCorrect : this.problems.get(i).isCorrect) ? 0 : 1) * sequence.get(i);
+			sDenom += sequence.get(i);
 		}
 
-		this.parameters = new KTParameters(startKnowledge, tDenom == 0 ? 0 : tNum / tDenom, new Gaussian(gDenom == 0 ? 0 : gNum / gDenom),
+		KTParameters p = new KTParameters(startKnowledge, tDenom == 0 ? 0 : tNum / tDenom, new Gaussian(gDenom == 0 ? 0 : gNum / gDenom),
 				new Gaussian(sDenom == 0 ? 0 : sNum / sDenom));
+		if (onGroundTruth) this.parametersGT = p;
+		else this.parameters = p;
+		return p;
 	}
 
 	/** @return The last Problem of this Sequence. */
@@ -119,7 +129,7 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** Finds the best Knowledge Sequence for this Sequence. */
-	public void findKnowledgeSequence()
+	public void findKnowledgeSequence(boolean onGroundTruth)
 	{
 		/* this.idealKnowledge = new ArrayList<Boolean>(); for (Problem problem : this.problems) this.idealKnowledge.add(problem.isFocused); */
 
@@ -129,7 +139,7 @@ public class Sequence implements Comparable<Sequence>
 			public int compare(ArrayList<Boolean> o1, ArrayList<Boolean> o2)
 			{
 				// Revert as we want the highest first
-				return -similarity(o1).compareTo(similarity(o2));
+				return -similarity(o1, onGroundTruth).compareTo(similarity(o2, onGroundTruth));
 			}
 		});
 
@@ -139,24 +149,39 @@ public class Sequence implements Comparable<Sequence>
 		{
 			if (this.bestSimilarity == -1)
 			{
-				this.bestSimilarity = this.similarity(sequences.get(i));
+				this.bestSimilarity = this.similarity(sequences.get(i), onGroundTruth);
 				++total;
-			} else if (this.similarity(sequences.get(i)) == this.bestSimilarity) ++total;
+			} else if (this.similarity(sequences.get(i), onGroundTruth) == this.bestSimilarity) ++total;
 			else break;
 		}
 
 		while (sequences.size() > total)
 			sequences.remove(total);
 
-		this.knowledgeSequence = new ArrayList<Double>();
-		double current;
-		for (int i = 0; i < sequences.get(0).size(); ++i)
+		if (onGroundTruth)
 		{
-			current = 0;
-			for (ArrayList<Boolean> sequence : sequences)
-				current += sequence.get(i) ? 1 : 0;
-			current /= sequences.size();
-			this.knowledgeSequence.add(current);
+			this.knowledgeSequenceGT = new ArrayList<Double>();
+			double current;
+			for (int i = 0; i < sequences.get(0).size(); ++i)
+			{
+				current = 0;
+				for (ArrayList<Boolean> sequence : sequences)
+					current += sequence.get(i) ? 1 : 0;
+				current /= sequences.size();
+				this.knowledgeSequenceGT.add(current);
+			}
+		} else
+		{
+			this.knowledgeSequence = new ArrayList<Double>();
+			double current;
+			for (int i = 0; i < sequences.get(0).size(); ++i)
+			{
+				current = 0;
+				for (ArrayList<Boolean> sequence : sequences)
+					current += sequence.get(i) ? 1 : 0;
+				current /= sequences.size();
+				this.knowledgeSequence.add(current);
+			}
 		}
 	}
 
@@ -193,11 +218,11 @@ public class Sequence implements Comparable<Sequence>
 	}
 
 	/** @return the similarity of the input <code>sequence</code> to this Sequence. */
-	Double similarity(ArrayList<Boolean> sequence)
+	Double similarity(ArrayList<Boolean> sequence, boolean onGroundTruth)
 	{
 		double similarity = 0;
 		for (int i = 0; i < this.problems.size() && i < sequence.size(); ++i)
-			if (this.problems.get(i).isCorrect == sequence.get(i)) ++similarity;
+			if ((onGroundTruth ? this.problems.get(i).isTruthCorrect : this.problems.get(i).isCorrect) == sequence.get(i)) ++similarity;
 		return similarity / this.problems.size();
 	}
 
