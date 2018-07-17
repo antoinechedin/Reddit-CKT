@@ -28,7 +28,7 @@ public class PythonLogger implements Runnable
 			{
 				line = sc.nextLine();
 				if (line.contains("DNNR Finished")) RedditCKT.processFinished = true;
-				else System.out.println("[PYTHON]: " + line);
+				else RedditCKT.log("[PYTHON]: " + line);
 			} else try
 			{
 				Thread.sleep(100);

@@ -134,9 +134,9 @@ public class FileUtils
 			CSVParser parser = new CSVParser(new BufferedReader(new FileReader(new File(predictionsPath))), CSVFormat.DEFAULT.withFirstRecordAsHeader());
 			for (CSVRecord record : parser)
 			{
-				String id = record.get(0);
+				String id = record.get(RedditCKT.column_problem);
 				Problem p = RedditCKT.getProblem(id);
-				String pred =record.get(1);
+				String pred = record.get(RedditCKT.column_karma_predicted);
 				p.prediction = Double.valueOf(pred);
 			}
 			parser.close();
@@ -169,6 +169,9 @@ public class FileUtils
 		RedditCKT.column_problem = RedditCKT.settings.getProperty("column_problem");
 		RedditCKT.column_score = RedditCKT.settings.getProperty("column_score");
 		RedditCKT.column_sequence = RedditCKT.settings.getProperty("column_sequence");
+		RedditCKT.column_karma_predicted = RedditCKT.settings.getProperty("column_karma_predicted");
+		RedditCKT.predictions_file = RedditCKT.settings.getProperty("predictions_file");
+		RedditCKT.script = RedditCKT.settings.getProperty("execute_script");
 
 		try
 		{
