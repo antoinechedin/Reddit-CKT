@@ -171,6 +171,7 @@ public class FileUtils
 		RedditCKT.column_sequence = RedditCKT.settings.getProperty("column_sequence");
 		RedditCKT.column_karma_predicted = RedditCKT.settings.getProperty("column_karma_predicted");
 		RedditCKT.predictions_file = RedditCKT.settings.getProperty("predictions_file");
+		RedditCKT.script = RedditCKT.settings.getProperty("execute_script");
 
 		try
 		{

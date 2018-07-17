@@ -30,7 +30,7 @@ public class RedditCKT
 	public static KTParametersStats avg_parameters, stdev_parameters;
 	public static String column_order, column_problem, column_sequence, column_score, column_karma_predicted;
 	public static final ArrayList<Sequence> dataset = new ArrayList<>();
-	public static String dataset_directory, results_directory, predictions_file;
+	public static String dataset_directory, results_directory, predictions_file, script;
 	public static int folds, kttis;
 	public static double karma_rmse, karma_mae;
 	private static final ArrayList<String> log = new ArrayList<>();
@@ -119,7 +119,7 @@ public class RedditCKT
 	public static void executeDNNR()
 	{
 		RedditCKT.log("Executing DNNR.py.");
-		String command = "python src/main/python/dnnr.py " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
+		String command = "python " + script + " " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
 		try
 		{
 			new Thread(new PythonLogger()).start();
@@ -309,7 +309,7 @@ public class RedditCKT
 
 		FileUtils.readSettings(args.length == 0 ? "settings.properties" : args[0]);
 		FileUtils.readGroundTruthAndMetrics();
-		// executeDNNR();
+		if (script != null) executeDNNR();
 		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + "dnnr_predictions.csv");
 		reduceAndCenter();
 		karma_rmse = Stats.computeKarmaRMSE();
