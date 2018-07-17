@@ -28,9 +28,9 @@ public class RedditCKT
 {
 
 	public static KTParametersStats avg_parameters, stdev_parameters;
-	public static String column_order, column_problem, column_sequence, column_score;
+	public static String column_order, column_problem, column_sequence, column_score, column_karma_predicted;
 	public static final ArrayList<Sequence> dataset = new ArrayList<>();
-	public static String dataset_directory, results_directory;
+	public static String dataset_directory, results_directory, predictions_file;
 	public static int folds, kttis;
 	public static double karma_rmse, karma_mae;
 	private static final ArrayList<String> log = new ArrayList<>();
@@ -145,21 +145,22 @@ public class RedditCKT
 		for (int t = 1; t <= thresholds.length; ++t)
 		{
 			KTTIResults threshold = thresholds[t - 1];
-			data[t][0] = Utils.toString(threshold.threshold);
+			if (threshold == null) continue;
+			data[t][0] = Utils.toString(threshold.threshold * (maxValue - minValue) + minValue);
 			data[t][1] = Utils.toString(karma_mae);
 			data[t][2] = Utils.toString(threshold.ktMAE());
-			data[t][1] = Utils.toString(karma_rmse);
-			data[t][2] = Utils.toString(threshold.ktRMSE());
-			data[t][3] = Utils.toString(threshold.correctsGT());
-			data[t][4] = Utils.toString(threshold.corrects());
-			data[t][5] = Utils.toString(threshold.pl0_avg());
-			data[t][6] = Utils.toString(threshold.pl0_stdev());
-			data[t][7] = Utils.toString(threshold.pt_avg());
-			data[t][8] = Utils.toString(threshold.pt_stdev());
-			data[t][9] = Utils.toString(threshold.ps_avg());
-			data[t][10] = Utils.toString(threshold.ps_stdev());
-			data[t][11] = Utils.toString(threshold.pg_avg());
-			data[t][12] = Utils.toString(threshold.pg_stdev());
+			data[t][3] = Utils.toString(karma_rmse);
+			data[t][4] = Utils.toString(threshold.ktRMSE());
+			data[t][5] = Utils.toString(threshold.correctsGT());
+			data[t][6] = Utils.toString(threshold.corrects());
+			data[t][7] = Utils.toString(threshold.pl0_avg());
+			data[t][8] = Utils.toString(threshold.pl0_stdev());
+			data[t][9] = Utils.toString(threshold.pt_avg());
+			data[t][10] = Utils.toString(threshold.pt_stdev());
+			data[t][11] = Utils.toString(threshold.ps_avg());
+			data[t][12] = Utils.toString(threshold.ps_stdev());
+			data[t][13] = Utils.toString(threshold.pg_avg());
+			data[t][14] = Utils.toString(threshold.pg_stdev());
 		}
 
 		FileUtils.exportData(new File(results_directory + File.separator + "params.csv"), data);
