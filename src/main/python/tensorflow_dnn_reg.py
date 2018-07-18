@@ -28,11 +28,11 @@ LABEL_NAME = "score"
 
 # Hyper parameters
 INPUT_RECORDS_NUM = None
-BATCH_SIZE = 100
-HIDDEN_UNITS = [25, 15, 5]
-LEARNING_RATE = 0.3
-PERIOD = 10
-STEPS = 10000
+BATCH_SIZE = 5000
+HIDDEN_UNITS = [50, 50]
+LEARNING_RATE = 0.0000001
+PERIOD = 20
+STEPS = 3e5
 
 FLAGS = None
 
@@ -132,7 +132,7 @@ def cross_val_predict(input_files_list, output_file, folds):
             feature_columns=get_feature_columns(train_features),
             model_dir=MODEL_DIR_PATH,
             label_dimension=1,
-            optimizer=tf.train.AdagradOptimizer(learning_rate=LEARNING_RATE)
+            optimizer=tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE)
         )
 
         print("{}: BEGIN TRAINING FOLD {}/{}".format(datetime.now(), fold_index + 1, folds))

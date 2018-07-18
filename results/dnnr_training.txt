@@ -1,0 +1,26 @@
+# Graph Details
+
+A simple Deep neural network was performed in order to find a any pattern in the dataset.
+This graph represents the gradient descent training curve of the regressor. This regressor was trained
+on the reddit dataset. The script that created this graph can be found in `src/main/python/keras.py`
+
+About the hyper parameter:
+The dataset was split into to set, one for training, another for validation. The split was random and
+the validation size was 20% of the original dataset size. The regressor was trained over 5,000 epochs
+with a full batch, that's mean we trained over the full dataset 5,000 times. The neural network was
+composed of 5 layer of 32 nodes fully connected, with RELU activation. The learning rate was 0.001
+
+X: epoch
+Y: Mean absolute error
+
+# What we can see
+
+Let's forget about the validation curve (orange one) and concentrate on the training.
+This graph show clearly that *there's no strong pattern in the data*. With a full batch train, and
+5 layers of 32 nodes, the training phase should have over fit the data. But that's not the case,
+we can clearly see that the loss get stuck at 14.9 after 500 epochs and don't improve in any way after.
+If there were any kind of relation between th features and the target, the NN should have find it, and
+even try to over fit it.
+
+A simple precision, a 15 mean absolute error is what a simple linear regressor find. That confirm that
+there's no pattern to found better than a linear regression with this kind of features.
