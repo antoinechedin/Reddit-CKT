@@ -24,7 +24,7 @@ FEATURES_NAME_LIST = [
     "polaritySelftext", "polarityTitle",
     "polarity"
 ]  # Deviation is not used, it has no meaning here
-LABEL_NAME = "score"
+LABEL_NAME = "karma"
 
 # Hyper parameters
 INPUT_RECORDS_NUM = None

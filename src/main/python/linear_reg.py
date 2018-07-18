@@ -84,7 +84,7 @@ if __name__ == "__main__":
         "polarityTitle"
         "polarity"
     ]
-    target_name = "score"
+    target_name = "karma"
     dataset_dir = "datasets/5_folds/"
     output_file = "results/5_folds/linear_reg_predictions.csv"
     karma_max = None
