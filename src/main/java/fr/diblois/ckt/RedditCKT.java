@@ -54,8 +54,9 @@ public class RedditCKT
 
 	/** Determines P(L0), P(T), P(G), P(S). Analyzes the {@link Main#learningSet learning set} and returns the parameters.
 	 *
-	 * @param trainset */
-	private static KTParameters computeParameters(ArrayList<Sequence> trainset)
+	 * @param trainset
+	 * @param onGroundTruth */
+	private static KTParameters computeParameters(ArrayList<Sequence> trainset, boolean onGroundTruth)
 	{
 		double kStart = 0, mTransition = 0, mGuess = 0, mSlip = 0;
 
@@ -63,7 +64,7 @@ public class RedditCKT
 		int count = 0;
 		for (Sequence sequence : trainset)
 		{
-			kStart += sequence.knowledgeSequence.get(0);
+			kStart += (onGroundTruth ? sequence.knowledgeSequenceGT.get(0) : sequence.knowledgeSequence.get(0));
 			++count;
 			/* Tried using more than one for starting knowledge, but had close to no impact. if (sequence.knowledgeSequence.size() > 1) { kStart += sequence.knowledgeSequence.get(1); ++s; } if (sequence.knowledgeSequence.size() > 2) { kStart += sequence.knowledgeSequence.get(2); ++s; } */
 		}
@@ -73,20 +74,20 @@ public class RedditCKT
 		int tCount = 0, gCount = 0, sCount = 0;
 		for (Sequence sequence : trainset)
 		{
-			sequence.computeProbabilities(kStart);
-			if (!Double.isNaN(sequence.parameters.transition))
+			KTParameters params = sequence.computeProbabilities(kStart, onGroundTruth);
+			if (!Double.isNaN(params.transition))
 			{
-				mTransition += sequence.parameters.transition;
+				mTransition += params.transition;
 				++tCount;
 			}
-			if (!Double.isNaN(sequence.parameters.guess.mean))
+			if (!Double.isNaN(params.guess.mean))
 			{
-				mGuess += sequence.parameters.guess.next();
+				mGuess += params.guess.next();
 				++gCount;
 			}
-			if (!Double.isNaN(sequence.parameters.slip.mean))
+			if (!Double.isNaN(params.slip.mean))
 			{
-				mSlip += sequence.parameters.slip.next();
+				mSlip += params.slip.next();
 				++sCount;
 			}
 		}
@@ -99,9 +100,10 @@ public class RedditCKT
 		double sGuess = 0, sSlip = 0;
 		for (Sequence sequence : trainset)
 		{
-			// if (!Double.isNaN(sequence.parameters.transition)) sTransition += Math.pow(sequence.parameters.transition - mTransition, 2);
-			if (!Double.isNaN(sequence.parameters.guess.mean)) sGuess += Math.pow(sequence.parameters.guess.mean - mGuess, 2);
-			if (!Double.isNaN(sequence.parameters.slip.mean)) sSlip += Math.pow(sequence.parameters.slip.mean - mSlip, 2);
+			KTParameters params = onGroundTruth ? sequence.parametersGT : sequence.parameters;
+			// if (!Double.isNaN(params.transition)) sTransition += Math.pow(params.transition - mTransition, 2);
+			if (!Double.isNaN(params.guess.mean)) sGuess += Math.pow(params.guess.mean - mGuess, 2);
+			if (!Double.isNaN(params.slip.mean)) sSlip += Math.pow(params.slip.mean - mSlip, 2);
 		}
 		// sTransition = Math.sqrt(sTransition / tSize);
 		sGuess = Math.sqrt(sGuess / gCount);
@@ -137,8 +139,9 @@ public class RedditCKT
 
 	private static void exportParams(KTTIResults[] thresholds)
 	{
-		String[] header = { "Threshold", "mae_pred", "mae_kt", "rmse_pred", "rmse_kt", "corrects_karma", "corrects_pred", "PL0_avg", "PL0_stdev", "PT_avg",
-				"PT_stdev", "PS_avg", "PS_stdev", "PG_avg", "PG_stdev" };
+		String[] header = { "Threshold", "mae_pred", "mae_kt", "rmse_pred", "rmse_kt", "corrects_karma", "corrects_pred", "PL0_avg_pred", "PL0_stdev_pred",
+				"PT_avg_pred", "PT_stdev_pred", "PS_avg_pred", "PS_stdev_pred", "PG_avg_pred", "PG_stdev_pred", "PL0", "PL0 stdev", "PT", "PT stdev", "PS",
+				"PS stdev", "PG", "PG stdev" };
 		String[][] data = new String[thresholds.length + 1][header.length];
 		data[0] = header;
 
@@ -161,6 +164,14 @@ public class RedditCKT
 			data[t][12] = Utils.toString(threshold.ps_stdev());
 			data[t][13] = Utils.toString(threshold.pg_avg());
 			data[t][14] = Utils.toString(threshold.pg_stdev());
+			data[t][15] = Utils.toString(threshold.pl0_gt());
+			data[t][16] = Utils.toString(threshold.pl0_gtstdev());
+			data[t][17] = Utils.toString(threshold.pt_gt());
+			data[t][18] = Utils.toString(threshold.pt_gtstdev());
+			data[t][19] = Utils.toString(threshold.ps_gt());
+			data[t][20] = Utils.toString(threshold.ps_gtstdev());
+			data[t][21] = Utils.toString(threshold.pg_gt());
+			data[t][22] = Utils.toString(threshold.pg_gtstdev());
 		}
 
 		FileUtils.exportData(new File(results_directory + File.separator + "params.csv"), data);
@@ -268,7 +279,10 @@ public class RedditCKT
 		Utils.random = new Random(1);
 		// log("Executing Knowledge Tracing...");
 		for (Sequence sequence : trainset)
-			sequence.findKnowledgeSequence();
+		{
+			sequence.findKnowledgeSequence(false);
+			sequence.findKnowledgeSequence(true);
+		}
 
 		double corrects = 0, correctsGT = 0, total = 0;
 		for (Sequence sequence : trainset)
@@ -282,12 +296,16 @@ public class RedditCKT
 		corrects = corrects * 100 / total;
 		correctsGT = correctsGT * 100 / total;
 
-		KTParameters params = computeParameters(trainset);
+		KTParameters params = computeParameters(trainset, false);
+		KTParameters paramsGT = computeParameters(trainset, true);
 		for (Sequence sequence : testset)
-			sequence.computeKnowledge(params);
+		{
+			sequence.computeKnowledge(params, false);
+			sequence.computeKnowledge(paramsGT, true);
+		}
 		findRepresentativeProblems(testset);
 
-		return new KTFIResults(fold, params, correctsGT, corrects, Stats.computeKTRMSE(testset), Stats.computeMAE(testset));
+		return new KTFIResults(fold, paramsGT, params, correctsGT, corrects, Stats.computeKTRMSE(testset), Stats.computeMAE(testset));
 	}
 
 	/** Prints a message and adds it to the log. */
@@ -310,7 +328,7 @@ public class RedditCKT
 		FileUtils.readSettings(args.length == 0 ? "settings.properties" : args[0]);
 		FileUtils.readGroundTruthAndMetrics();
 		if (script != null) executeDNNR();
-		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + "dnnr_predictions.csv");
+		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + RedditCKT.predictions_file);
 		reduceAndCenter();
 		karma_rmse = Stats.computeKarmaRMSE();
 		karma_mae = Stats.computeKarmaMAE();
