@@ -1,4 +1,4 @@
-from typing import Dict, List, Any
+from typing import Dict, List
 
 from sklearn import linear_model
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -6,22 +6,16 @@ import pandas as pd
 import os
 import math
 
-features_name = [
-    "selftextLength", "titleLength",
-    "selftextARI", "titleARI",
-    "selftextSpellingError", "titleSpellingError",
-    "selftextSpellingErrorRatio", "titleSpellingErrorRatio",
-    "selftextFOG", "titleFOG",
-    "selftextFK", "titleFK",
-    "selftextCLI", "titleCLI",
-    "polaritySelftext", "polarityTitle",
-    "polarity"
-]
-target_name = "score"
-dataset_dir = "datasets/5_folds/"
-folds = 5
-output_file = "results/5_folds/linear_reg_predictions_40.csv"
-karma_max = 40
+
+def get_files_in(directory: str) -> List[str]:
+    """Return a list of file path which are inside a certain directory
+
+    :type directory: str
+    :param directory: Directory path
+    :rtype: List[str]
+    :return: A list of file path
+    """
+    return [os.path.join(directory, f) for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
 
 def init_datasets(input_dir: str, fold_index: int) -> (pd.DataFrame, pd.Series, pd.DataFrame, pd.Series):
@@ -70,6 +64,33 @@ def init_datasets(input_dir: str, fold_index: int) -> (pd.DataFrame, pd.Series, 
 
 
 if __name__ == "__main__":
+    # --- PARAMS ---
+    features_name = [
+        "selftextLength",
+        "titleLength",
+        "selftextARI",
+        "titleARI",
+        "selftextSpellingError",
+        "titleSpellingError",
+        "selftextSpellingErrorRatio",
+        "titleSpellingErrorRatio",
+        "selftextFOG",
+        "titleFOG",
+        "selftextFK",
+        "titleFK",
+        "selftextCLI",
+        "titleCLI",
+        "polaritySelftext",
+        "polarityTitle"
+        "polarity"
+    ]
+    target_name = "score"
+    dataset_dir = "datasets/5_folds/"
+    output_file = "results/5_folds/linear_reg_predictions.csv"
+    karma_max = None
+    # ------
+
+    folds = len(get_files_in(dataset_dir)) # Get number of file into the dataset dir
     metrics: Dict[str, List[int]] = {"mae": [], "rmse": []}
     predict_dataset: pd.DataFrame = None
 
@@ -89,6 +110,8 @@ if __name__ == "__main__":
 
         valid_pred = pd.Series(valid_pred, index=valid_target.index, name="karma_predicted").to_frame()
         valid_pred["karma"] = valid_target
+        for i in range(len(features_name)):
+            print("    {}: {}".format(features_name[i], regressor.coef_[i]))
 
         if predict_dataset is None:
             predict_dataset = valid_pred
