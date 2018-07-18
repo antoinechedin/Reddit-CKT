@@ -26,24 +26,38 @@ import fr.diblois.ckt.util.PythonLogger;
 import fr.diblois.ckt.util.Sequence;
 import fr.diblois.ckt.util.Utils;
 
+/** Main class. */
 public class RedditCKT
 {
 
+	/** Global parameters. */
 	public static KTParametersStats avg_parameters, stdev_parameters;
+	/** Column names in input files. */
 	public static String column_order, column_problem, column_sequence, column_score, column_karma_predicted;
+	/** All the data. */
 	public static final ArrayList<Sequence> dataset = new ArrayList<>();
+	/** File paths. */
 	public static String dataset_directory, results_directory, predictions_file, script;
-	public static int folds, kttis;
+	/** Number of iterations. */
+	public static int folds, threshold_count;
+	/** Global values. */
 	public static double karma_rmse, karma_mae;
+	/** Logger. */
 	private static final ArrayList<String> log = new ArrayList<>();
+	/** True if the min & max were set in the parameters. */
 	public static boolean minFixed, maxFixed;
+	/** Min & max values for input scores. */
 	public static double minValue, maxValue;
+	/** The Process created from the python execution. */
 	public static Process process;
+	/** True if the python execution is over. */
 	public static boolean processFinished = false;
+	/** The app parameters read from the properties file. */
 	public static final Properties settings = new Properties();
+	/** The subsets used in cross validation. */
 	public static final ArrayList<ArrayList<Sequence>> subsets = new ArrayList<>();
 
-	/** Uses the input <code>threshold</code> to determine the correctness of the problem. */
+	/** Uses the input <code>threshold</code> to determine the correctness of each problem. */
 	private static void applyThreshold(double threshold)
 	{
 		for (Sequence sequence : dataset)
@@ -54,10 +68,10 @@ public class RedditCKT
 			}
 	}
 
-	/** Determines P(L0), P(T), P(G), P(S). Analyzes the {@link Main#learningSet learning set} and returns the parameters.
+	/** Determines P(L0), P(T), P(G), P(S) for the input set.
 	 *
-	 * @param trainset
-	 * @param onGroundTruth */
+	 * @param trainset - The set to get parameters from.
+	 * @param onGroundTruth - True if parameters should be computed for ground truth, false for predictions. */
 	private static KTParameters computeParameters(ArrayList<Sequence> trainset, boolean onGroundTruth)
 	{
 		double kStart = 0, mTransition = 0, mGuess = 0, mSlip = 0;
@@ -120,6 +134,7 @@ public class RedditCKT
 		return new KTParameters(kStart, mTransition, new Gaussian(mGuess, sGuess), new Gaussian(mSlip, sSlip));
 	}
 
+	/** Executes the Python script for predictions. */
 	public static void executePython()
 	{
 		RedditCKT.log("Executing Python script. Logs will be printed when script ends.");
@@ -150,6 +165,7 @@ public class RedditCKT
 		}
 	}
 
+	/** Exports to the parameters csv file. */
 	private static void exportParams(KTTIResults[] thresholds)
 	{
 		String[] header = { "Threshold", "mae_pred", "mae_kt", "rmse_pred", "rmse_kt", "corrects_karma", "corrects_pred", "PL0_avg_pred", "PL0_stdev_pred",
@@ -169,27 +185,28 @@ public class RedditCKT
 			data[t][4] = Utils.toString(threshold.ktRMSE());
 			data[t][5] = Utils.toString(threshold.correctsGT());
 			data[t][6] = Utils.toString(threshold.corrects());
-			data[t][7] = Utils.toString(threshold.pl0_avg());
-			data[t][8] = Utils.toString(threshold.pl0_stdev());
-			data[t][9] = Utils.toString(threshold.pt_avg());
-			data[t][10] = Utils.toString(threshold.pt_stdev());
-			data[t][11] = Utils.toString(threshold.ps_avg());
-			data[t][12] = Utils.toString(threshold.ps_stdev());
-			data[t][13] = Utils.toString(threshold.pg_avg());
-			data[t][14] = Utils.toString(threshold.pg_stdev());
-			data[t][15] = Utils.toString(threshold.pl0_gt());
-			data[t][16] = Utils.toString(threshold.pl0_gtstdev());
-			data[t][17] = Utils.toString(threshold.pt_gt());
-			data[t][18] = Utils.toString(threshold.pt_gtstdev());
-			data[t][19] = Utils.toString(threshold.ps_gt());
-			data[t][20] = Utils.toString(threshold.ps_gtstdev());
-			data[t][21] = Utils.toString(threshold.pg_gt());
-			data[t][22] = Utils.toString(threshold.pg_gtstdev());
+			data[t][7] = Utils.toString(threshold.parametersAvg.startKnowledge);
+			data[t][8] = Utils.toString(threshold.parametersStdev.startKnowledge);
+			data[t][9] = Utils.toString(threshold.parametersAvg.transition);
+			data[t][10] = Utils.toString(threshold.parametersStdev.transition);
+			data[t][11] = Utils.toString(threshold.parametersAvg.slip);
+			data[t][12] = Utils.toString(threshold.parametersStdev.slip);
+			data[t][13] = Utils.toString(threshold.parametersAvg.guess);
+			data[t][14] = Utils.toString(threshold.parametersStdev.guess);
+			data[t][15] = Utils.toString(threshold.parametersGTAvg.startKnowledge);
+			data[t][16] = Utils.toString(threshold.parametersGTStdev.startKnowledge);
+			data[t][17] = Utils.toString(threshold.parametersGTAvg.transition);
+			data[t][18] = Utils.toString(threshold.parametersGTStdev.transition);
+			data[t][19] = Utils.toString(threshold.parametersGTAvg.slip);
+			data[t][20] = Utils.toString(threshold.parametersGTStdev.slip);
+			data[t][21] = Utils.toString(threshold.parametersGTAvg.guess);
+			data[t][22] = Utils.toString(threshold.parametersGTStdev.guess);
 		}
 
 		FileUtils.exportData(new File(results_directory + File.separator + "params.csv"), data);
 	}
 
+	/** Exports to the usergraphs json file. */
 	private static void exportUserGraphs(KTTIResults[] thresholds)
 	{
 		double t = 0;
@@ -254,6 +271,7 @@ public class RedditCKT
 		}
 	}
 
+	/** Finishes the execution by exporting results. */
 	private static void finish(KTTIResults[] thresholds)
 	{
 		exportParams(thresholds);
@@ -272,6 +290,7 @@ public class RedditCKT
 		}
 	}
 
+	/** @return The Problem with the input ID. */
 	public static Problem getProblem(String id)
 	{
 		for (Sequence s : dataset)
@@ -280,6 +299,7 @@ public class RedditCKT
 		return null;
 	}
 
+	/** @return The Sequence with the input ID. */
 	public static Sequence getSequence(String id)
 	{
 		for (Sequence s : dataset)
@@ -287,7 +307,12 @@ public class RedditCKT
 		return null;
 	}
 
-	/** Executes a single fold iteration in the cross validation. */
+	/** Executes a single fold iteration in the cross validation for an input threshold.
+	 * 
+	 * @param fold - The index for the fold.
+	 * @param threshold - The value of the threshold to use in this fold.
+	 * @param trainset - The data to use as a training set in this fold.
+	 * @param testset - The data to use as a testing set in this fold. */
 	private static KTFIResults knowledgeTracing(int fold, double threshold, ArrayList<Sequence> trainset, ArrayList<Sequence> testset)
 	{
 		Utils.random = new Random(1);
@@ -340,17 +365,17 @@ public class RedditCKT
 		log("Starting Reddit CKT.");
 
 		FileUtils.readSettings(args.length == 0 ? "settings.properties" : args[0]);
-		FileUtils.readGroundTruthAndMetrics();
+		FileUtils.readInputData();
 		if (script != null) executePython();
 		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + RedditCKT.predictions_file);
 		reduceAndCenter();
 		karma_rmse = Stats.computeKarmaRMSE();
 		karma_mae = Stats.computeKarmaMAE();
 
-		double thresholdIncrement = (maxValue - minValue) * 1. / kttis;
+		double thresholdIncrement = (maxValue - minValue) * 1. / threshold_count;
 
 		// Iterate for cross validation
-		KTTIResults[] thresholds = new KTTIResults[kttis + 1];
+		KTTIResults[] thresholds = new KTTIResults[threshold_count + 1];
 		int i = 0;
 		// System.out.println(thresholdIncrement);
 		for (double threshold = minValue; threshold <= maxValue; threshold += thresholdIncrement)
@@ -361,6 +386,7 @@ public class RedditCKT
 		log("Finished!");
 	}
 
+	/** Reduces and centers all scores in the dataset. */
 	private static void reduceAndCenter()
 	{
 		for (Sequence sequence : dataset)
@@ -384,6 +410,7 @@ public class RedditCKT
 			}
 	}
 
+	/** Executes knowledge tracing for an input threshold. */
 	private static KTTIResults threshold(double threshold)
 	{
 		RedditCKT.log("Executing knowledge tracing with threshold: " + threshold);

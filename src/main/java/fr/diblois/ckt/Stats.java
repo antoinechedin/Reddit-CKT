@@ -40,7 +40,6 @@ public class Stats
 		return Math.sqrt(rmse / problems); // RedditCKT.dataset.size());
 	}
 
-	/** @return The Precision for the Knowledge for the input sequences. */
 	public static double computeKTRMSE(ArrayList<Sequence> sequences)
 	{
 		double precision = 0;
@@ -60,7 +59,6 @@ public class Stats
 		return Math.sqrt(precision / sequences.size());
 	}
 
-	/** @return The Precision for the Knowledge for the input sequences. */
 	public static double computeMAE(ArrayList<Sequence> sequences)
 	{
 		double precision = 0;

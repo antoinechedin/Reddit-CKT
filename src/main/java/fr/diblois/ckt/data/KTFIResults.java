@@ -1,6 +1,7 @@
 package fr.diblois.ckt.data;
 
-/** Knowledge Tracing Fold Iteration Results. */
+/** Knowledge Tracing Fold Iteration Results.<br>
+ * Represents the results of a single fold in the cross validation, for a fixed threshold. */
 public class KTFIResults
 {
 
