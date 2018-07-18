@@ -81,7 +81,7 @@ if __name__ == "__main__":
         "selftextCLI",
         "titleCLI",
         "polaritySelftext",
-        "polarityTitle"
+        "polarityTitle",
         "polarity"
     ]
     target_name = "score"
