@@ -239,17 +239,18 @@ public class RedditCKT
 	{
 		for (Sequence sequence : set)
 		{
-			if (settings.getProperty("smooth_rmse").equals("true"))
+			if (settings.getProperty("rmse").equals("last")) sequence.finalProblem().isRepresentative = true;
+			else
 			{
 				Problem best = sequence.finalProblem();
-				// Find problem with smallest distance to expected
-				for (Problem p : sequence.problems)
+				if (settings.getProperty("rmse").equals("all")) best = sequence.problems.get(0);
+				else for (Problem p : sequence.problems) // Find problem with smallest distance to expected
 					if (Math.abs(p.expectedKnowledge.mean - p.knowledge.mean) < Math.abs(best.expectedKnowledge.mean - best.knowledge.mean)) best = p;
 
 				// Use it and all problems after
 				for (int i = sequence.problems.indexOf(best); i < sequence.problems.size(); ++i)
 					sequence.problems.get(i).isRepresentative = true;
-			} else sequence.finalProblem().isRepresentative = true;
+			}
 		}
 	}
 
