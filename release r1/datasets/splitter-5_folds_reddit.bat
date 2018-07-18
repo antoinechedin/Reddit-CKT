@@ -1,1 +1,0 @@
-java -jar dataset-splitter.jar dataset_with_feature_normalized.csv score author 5_folds_test/part_0.csv 5_folds_test/part_1.csv 5_folds_test/part_2.csv 5_folds_test/part_3.csv 5_folds_test/part_4.csv

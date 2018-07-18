@@ -1,1 +1,0 @@
-java -jar RedditCKT.jar settings_5_40_40.properties
