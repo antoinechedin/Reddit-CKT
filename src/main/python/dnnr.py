@@ -205,3 +205,5 @@ if __name__ == "__main__":
     cross_val_predict(input_files_list, output_file_str, folds=num_fold)
 
     print("\n{}: DNNR Finished".format(datetime.now()))
+    
+    print("END OF SCRIPT")

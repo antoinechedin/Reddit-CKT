@@ -27,7 +27,7 @@ public class PythonLogger implements Runnable
 			if (sc.hasNextLine())
 			{
 				line = sc.nextLine();
-				if (line.contains("DNNR Finished")) RedditCKT.processFinished = true;
+				if (line.contains("END OF SCRIPT")) RedditCKT.processFinished = true;
 				else RedditCKT.log("[PYTHON]: " + line);
 			} else try
 			{

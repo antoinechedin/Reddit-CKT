@@ -120,3 +120,5 @@ if __name__ == "__main__":
 
     print("Regression finished, saving prediction file...")
     predict_dataset[["karma", "karma_predicted"]].to_csv(output_file)
+    
+    print("END OF SCRIPT")

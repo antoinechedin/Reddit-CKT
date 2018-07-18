@@ -4,6 +4,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Random;
@@ -118,17 +120,28 @@ public class RedditCKT
 		return new KTParameters(kStart, mTransition, new Gaussian(mGuess, sGuess), new Gaussian(mSlip, sSlip));
 	}
 
-	public static void executeDNNR()
+	public static void executePython()
 	{
-		RedditCKT.log("Executing DNNR.py.");
-		String command = "python " + script + " " + dataset_directory + " " + results_directory + "/dnnr_predictions.csv";
+		RedditCKT.log("Executing Python script. Logs will be printed when script ends.");
+		String command = "python " + script + " \"" + dataset_directory + "\" \"" + results_directory + "\"";
 		try
 		{
 			new Thread(new PythonLogger()).start();
 			process = Runtime.getRuntime().exec(command);
 
 			while (!processFinished)
+			{
+				if (!process.isAlive())
+				{
+					System.err.println("Python script ended abruptly! Error: ");
+					InputStream s = process.getErrorStream();
+					byte[] bytes = new byte[s.available()];
+					s.read(bytes);
+					System.err.println(new String(bytes, StandardCharsets.UTF_8));
+					System.exit(0);
+				}
 				Thread.sleep(100);
+			}
 			System.out.println("Python script finished.");
 		} catch (final Exception e)
 		{
@@ -327,7 +340,7 @@ public class RedditCKT
 
 		FileUtils.readSettings(args.length == 0 ? "settings.properties" : args[0]);
 		FileUtils.readGroundTruthAndMetrics();
-		if (script != null) executeDNNR();
+		if (script != null) executePython();
 		FileUtils.readPredictions(RedditCKT.results_directory + File.separator + RedditCKT.predictions_file);
 		reduceAndCenter();
 		karma_rmse = Stats.computeKarmaRMSE();
