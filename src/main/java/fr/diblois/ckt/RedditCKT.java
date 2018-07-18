@@ -379,7 +379,7 @@ public class RedditCKT
 				if (problem.karma > 1) problem.karma = 1;
 				if (problem.karma < 0) problem.karma = 0;
 				if (problem.prediction > 1) problem.prediction = 1;
-				if (problem.karma < 0) problem.karma = 0;
+				if (problem.prediction < 0) problem.prediction = 0;
 			}
 	}
 
