@@ -1,13 +1,24 @@
 package fr.diblois.ckt.data;
 
-/** Knowledge Tracing Threshold Iteration Results. */
+/** Knowledge Tracing Threshold Iteration Results.<br>
+ * Represents the results of all folds in the cross validation, for a fixed threshold. */
 public class KTTIResults
 {
 
+	/** The MAE on KT. -1 if not computed yet. */
 	private double kt_mae = -1;
+	/** The RMSE on KT. -1 if not computed yet. */
 	private double kt_rmse = -1;
 	/** The KTFIs done in this KTTI. */
 	public final KTFIResults[] ktfis;
+	/** The average parameters for this Threshold. */
+	public final KTParametersStats parametersAvg;
+	/** The average parameters for ground truth for this Threshold. */
+	public final KTParametersStats parametersGTAvg;
+	/** The standard deviation for parameters for ground truth for this Threshold. */
+	public final KTParametersStats parametersGTStdev;
+	/** The standard deviation for parameters for this Threshold. */
+	public final KTParametersStats parametersStdev;
 	/** The threshold that was used during this iteration. */
 	public final double threshold;
 
@@ -15,8 +26,14 @@ public class KTTIResults
 	{
 		this.threshold = threshold;
 		this.ktfis = ktfis;
+
+		this.parametersAvg = new KTParametersStats(this.pl0_avg(), this.pt_avg(), this.pg_avg(), this.ps_avg());
+		this.parametersStdev = new KTParametersStats(this.pl0_stdev(), this.pt_stdev(), this.pg_stdev(), this.ps_stdev());
+		this.parametersGTAvg = new KTParametersStats(this.pl0_gt(), this.pt_gt(), this.pg_gt(), this.ps_gt());
+		this.parametersGTStdev = new KTParametersStats(this.pl0_gtstdev(), this.pt_gtstdev(), this.pg_gtstdev(), this.ps_gtstdev());
 	}
 
+	/** @return The proportion of correct problems in for this Threshold. */
 	public double corrects()
 	{
 		double avg = 0;
@@ -25,6 +42,7 @@ public class KTTIResults
 		return avg * 1. / this.ktfis.length / 100;
 	}
 
+	/** @return The proportion of correct problems in ground truth in for this Threshold. */
 	public double correctsGT()
 	{
 		double avg = 0;
@@ -33,6 +51,7 @@ public class KTTIResults
 		return avg * 1. / this.ktfis.length / 100;
 	}
 
+	/** @return The MAE on KT for this Threshold. */
 	public double ktMAE()
 	{
 		if (this.kt_mae == -1)
@@ -45,6 +64,7 @@ public class KTTIResults
 		return this.kt_mae;
 	}
 
+	/** @return The RMSE on KT for this Threshold. */
 	public double ktRMSE()
 	{
 		if (this.kt_rmse == -1)
@@ -57,7 +77,8 @@ public class KTTIResults
 		return this.kt_rmse;
 	}
 
-	public double pg_avg()
+	/** @return The average value for P(G) for this Threshold. */
+	private double pg_avg()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -65,7 +86,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double pg_gt()
+	/** @return The average value for P(G) on ground truth for this Threshold. */
+	private double pg_gt()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -73,7 +95,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double pg_gtstdev()
+	/** @return The standard deviation for P(G) on ground truth for this Threshold. */
+	private double pg_gtstdev()
 	{
 		double avg = this.pg_avg();
 		double stdev = 0;
@@ -82,7 +105,8 @@ public class KTTIResults
 		return stdev / this.ktfis.length;
 	}
 
-	public double pg_stdev()
+	/** @return The standard deviation for P(G) for this Threshold. */
+	private double pg_stdev()
 	{
 		double avg = this.pg_avg();
 		double stdev = 0;
@@ -91,7 +115,8 @@ public class KTTIResults
 		return stdev / this.ktfis.length;
 	}
 
-	public double pl0_avg()
+	/** @return The average value for P(L0) for this Threshold. */
+	private double pl0_avg()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -99,7 +124,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double pl0_gt()
+	/** @return The average value for P(L0) on ground truth for this Threshold. */
+	private double pl0_gt()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -107,7 +133,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double pl0_gtstdev()
+	/** @return The standard deviation for P(L0) on ground truth for this Threshold. */
+	private double pl0_gtstdev()
 	{
 		double avg = this.pl0_avg();
 		double stdev = 0;
@@ -116,7 +143,8 @@ public class KTTIResults
 		return stdev / this.ktfis.length;
 	}
 
-	public double pl0_stdev()
+	/** @return The standard deviation for P(L0) for this Threshold. */
+	private double pl0_stdev()
 	{
 		double avg = this.pl0_avg();
 		double stdev = 0;
@@ -125,7 +153,8 @@ public class KTTIResults
 		return stdev / this.ktfis.length;
 	}
 
-	public double ps_avg()
+	/** @return The average value for P(S) for this Threshold. */
+	private double ps_avg()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -133,7 +162,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double ps_gt()
+	/** @return The average value for P(S) on ground truth for this Threshold. */
+	private double ps_gt()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -141,7 +171,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double ps_gtstdev()
+	/** @return The standard deviation for P(S) on ground truth for this Threshold. */
+	private double ps_gtstdev()
 	{
 		double avg = this.ps_avg();
 		double stdev = 0;
@@ -150,7 +181,8 @@ public class KTTIResults
 		return stdev / this.ktfis.length;
 	}
 
-	public double ps_stdev()
+	/** @return The standard deviation for P(S) for this Threshold. */
+	private double ps_stdev()
 	{
 		double avg = this.ps_avg();
 		double stdev = 0;
@@ -159,7 +191,8 @@ public class KTTIResults
 		return stdev / this.ktfis.length;
 	}
 
-	public double pt_avg()
+	/** @return The average value for P(T) for this Threshold. */
+	private double pt_avg()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -167,7 +200,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double pt_gt()
+	/** @return The average value for P(T) on ground truth for this Threshold. */
+	private double pt_gt()
 	{
 		double avg = 0;
 		for (KTFIResults ktfi : ktfis)
@@ -175,7 +209,8 @@ public class KTTIResults
 		return avg / this.ktfis.length;
 	}
 
-	public double pt_gtstdev()
+	/** @return The standard deviation for P(T) on ground truth for this Threshold. */
+	private double pt_gtstdev()
 	{
 		double avg = this.pt_avg();
 		double stdev = 0;
@@ -184,7 +219,8 @@ public class KTTIResults
 		return stdev / this.ktfis.length;
 	}
 
-	public double pt_stdev()
+	/** @return The standard deviation for P(T) for this Threshold. */
+	private double pt_stdev()
 	{
 		double avg = this.pt_avg();
 		double stdev = 0;

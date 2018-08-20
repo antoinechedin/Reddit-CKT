@@ -12,6 +12,7 @@ import fr.diblois.ckt.data.Gaussian;
 public class Utils
 {
 
+	/** RNG used throughout the hole project. */
 	public static Random random;
 
 	/** Displays a double with max size of 6. */

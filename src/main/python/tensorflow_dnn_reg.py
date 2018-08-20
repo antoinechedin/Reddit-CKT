@@ -24,7 +24,7 @@ FEATURES_NAME_LIST = [
     "polaritySelftext", "polarityTitle",
     "polarity"
 ]  # Deviation is not used, it has no meaning here
-LABEL_NAME = "score"
+LABEL_NAME = "karma"
 
 # Hyper parameters
 INPUT_RECORDS_NUM = None
@@ -205,3 +205,5 @@ if __name__ == "__main__":
     cross_val_predict(input_files_list, output_file_str, folds=num_fold)
 
     print("\n{}: DNNR Finished".format(datetime.now()))
+    
+    print("END OF SCRIPT")

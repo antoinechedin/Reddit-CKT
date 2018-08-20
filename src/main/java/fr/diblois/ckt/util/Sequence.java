@@ -33,15 +33,6 @@ public class Sequence implements Comparable<Sequence>
 		this.problems = new ArrayList<Problem>();
 	}
 
-	/** @return A copy of this Sequence, with scores corresponding to expected values. */
-	public Sequence asExpected()
-	{
-		Sequence copy = new Sequence(this.name);
-		for (Problem p : this.problems)
-			copy.problems.add(p.asExpected());
-		return copy;
-	}
-
 	@Override
 	public int compareTo(Sequence o)
 	{

@@ -50,6 +50,9 @@ public class FileUtils
 		while (!isWritten);
 	}
 
+	/** Exports the input data into the input file.
+	 * 
+	 * @param data - Matrix representing the lines and cells of a CSV file's data. */
 	public static void exportData(File output, String[][] data)
 	{
 		RedditCKT.log("Exporting to " + output.getName() + "...");
@@ -65,7 +68,8 @@ public class FileUtils
 		exportData(output, list);
 	}
 
-	static void readGroundTruthAndMetrics()
+	/** Reads the input data from the dataset directory. */
+	static void readInputData()
 	{
 		RedditCKT.log("Reading data.");
 		HashMap<String, HashSet<Problem>> problems = new HashMap<>();
@@ -125,7 +129,7 @@ public class FileUtils
 		RedditCKT.dataset.sort(Comparator.naturalOrder());
 	}
 
-	/** Reads predictions made by DNNR.py */
+	/** Reads predictions made by the python script. */
 	public static void readPredictions(String predictionsPath)
 	{
 		RedditCKT.log("Reading predictions.");
@@ -149,6 +153,7 @@ public class FileUtils
 		}
 	}
 
+	/** Reads the parameters contained in the properties file. */
 	static void readSettings(String settingsPath)
 	{
 		RedditCKT.log("Reading settings.");
@@ -184,7 +189,7 @@ public class FileUtils
 		}
 		try
 		{
-			RedditCKT.kttis = Integer.parseInt(RedditCKT.settings.getProperty("threshold_count"));
+			RedditCKT.threshold_count = Integer.parseInt(RedditCKT.settings.getProperty("threshold_count"));
 		} catch (NumberFormatException e)
 		{
 			RedditCKT.log("Invalid fold count: " + RedditCKT.settings.getProperty("threshold_count"));

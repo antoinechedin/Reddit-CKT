@@ -10,15 +10,12 @@ public class Problem implements Comparable<Problem>
 
 	public static Problem create(CSVRecord record) throws Exception
 	{
-		// TODO read metrics
 		Problem p = new Problem(record.get(RedditCKT.column_problem), record.get(RedditCKT.column_sequence),
 				Double.valueOf(record.get(RedditCKT.column_order)).intValue());
 		p.karma = Double.valueOf(record.get(RedditCKT.column_score));
 		return p;
 	}
 
-	/** The Knowledge aggregated from all metrics (only used for representative Problems). */
-	// public Gaussian aggregatedKnowledge;
 	/** The knowledge expected after this Problem. */
 	public Gaussian expectedKnowledge;
 	/** Index of the Problem in the Exploration. */
@@ -33,12 +30,6 @@ public class Problem implements Comparable<Problem>
 	public double karma;
 	/** The Knowledge computed after this Problem. */
 	public Gaussian knowledge;
-	/** True if Problem is considered correct for the ideal sequence for each metric. */
-	// public final HashMap<Metric, Boolean> metricCorrectness;
-	/** The knowledge for each individual metric. */
-	// public final HashMap<Metric, Gaussian> metricKnowledge;
-	/** The score for each individual metric. */
-	// public final HashMap<Metric, Double> metricScores;
 	/** Problem name. */
 	public final String name;
 	/** The prediction of this problem's karma. */
@@ -56,16 +47,6 @@ public class Problem implements Comparable<Problem>
 		this.name = name;
 		this.sequence = sequence;
 		this.index = index;
-		/* this.metricScores = new HashMap<Metric, Double>(); this.metricKnowledge = new HashMap<Metric, Gaussian>(); this.metricCorrectness = new HashMap<Metric, Boolean>(); */
-	}
-
-	/** @return A copy of this Problem, with scores as expected. */
-	public Problem asExpected()
-	{
-		Problem copy = new Problem(this.name, this.sequence, this.index);
-		copy.prediction = this.karma;
-		copy.isCorrect = this.isCorrect;
-		return copy;
 	}
 
 	@Override
